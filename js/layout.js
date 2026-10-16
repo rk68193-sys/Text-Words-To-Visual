@@ -82,9 +82,29 @@
     return detail.slice(0, cut > 120 ? cut : DETAIL_LIMIT) + ' …';
   }
 
-  // Lines of text inside one box, with their fonts and baselines.
-  function measureBox(node, depth, measure, scale = 1) {
+  // Lines of text inside one box, with their fonts and baselines. A drawing gets a thumbnail
+  // above its caption; figureSize(id) gives its width and height, or null when it is missing.
+  function measureBox(node, depth, measure, scale = 1, figureSize = null) {
     const level = levelFor(depth, scale);
+    if (node.kind === 'figure') {
+      const size = figureSize && figureSize(node.figure);
+      const font = { family: 'body', size: Math.round(13 * scale * 10) / 10, weight: 400 };
+      const tw = Math.round((depth >= 2 ? 150 : 170) * scale);
+      const th = size ? Math.round(Math.min(tw * 0.9, (tw * size.h) / size.w)) : 0;
+      const caption = size ? node.text : `${node.text} (drawing not in this notebook)`;
+      const rows = wrap(mathPlain(caption), font, Math.max(tw, 120 * scale), measure).map((text) => ({ text, font, detail: !size }));
+      let y = level.padY + (th ? th + 6 : 0);
+      let width = th ? tw : 0;
+      for (const row of rows) {
+        const lh = font.size * LINE_HEIGHT;
+        row.width = measure(row.text, font);
+        row.baseline = y + lh / 2 + font.size * 0.34;
+        y += lh;
+        width = Math.max(width, row.width);
+      }
+      const w = Math.ceil(width + level.padX * 2);
+      return { rows, w, h: Math.ceil(y + level.padY), thumb: th ? { x: (w - tw) / 2, y: level.padY, w: tw, h: th } : null };
+    }
     const bold = depth >= 2 && ['definition', 'callout', 'label'].includes(node.kind);
     const head = { family: level.family, size: level.size, weight: bold ? 700 : 400 };
     const rows = wrap(mathPlain(labelFor(node)), head, level.maxW, measure).map((text) => ({ text, font: head }));
@@ -117,13 +137,13 @@
    * unless oneSide is set. Each box is centered on the ideas that hang off it.
    */
   function layoutMindMap(tree, measure, options) {
-    const opts = Object.assign({ collapsed: new Set(), oneSide: false, textScale: 1 }, options);
+    const opts = Object.assign({ collapsed: new Set(), oneSide: false, textScale: 1, figureSize: null }, options);
     const scale = Math.min(2, Math.max(0.6, Number(opts.textScale) || 1));
     const boxes = [];
     const links = [];
 
     function build(node, depth, branch) {
-      const box = Object.assign(measureBox(node, depth, measure, scale), {
+      const box = Object.assign(measureBox(node, depth, measure, scale, opts.figureSize), {
         node, key: node.key, depth, branch, x: 0, y: 0, side: 1, children: [],
         hidden: 0,
       });

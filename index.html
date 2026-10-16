@@ -73,6 +73,10 @@
               <option value="Tip: ">Tip / intuition</option>
               <option value="Q: ">Question</option>
             </optgroup>
+            <optgroup label="Pictures">
+              <option value="__draw">Drawing or math graph…</option>
+              <option value="__picture">Picture from a file (draw on it)…</option>
+            </optgroup>
             <optgroup label="Math (at the cursor)">
               <option value="^{}">Superscript x^{2}</option>
               <option value="_{}">Subscript a_{ij}</option>
@@ -80,6 +84,7 @@
               <option value="|a b; c d|">Determinant |a b; c d|</option>
             </optgroup>
           </select>
+          <button type="button" data-tool="draw" class="tidy" title="Draw a picture or a math graph and put it in your notes (on a drawing's line: edit it)">✎ Draw</button>
           <button type="button" data-tool="tidy" class="tidy" title="Even out the indentation. What nests under what stays the same.">Tidy</button>
         </div>
       </div>
@@ -150,9 +155,9 @@
           <form class="page-controls" id="page-controls" aria-label="How the handwriting looks">
             <label>Handwriting <select id="hw-font"></select></label>
             <label>Pen <select id="hw-pen"></select></label>
-            <label>Ink <select id="hw-ink"></select></label>
-            <label>Accent ink <select id="hw-accent"></select></label>
-            <label>Highlighter <select id="hw-highlight"></select></label>
+            <label>Ink <span class="pick"><select id="hw-ink"></select><input type="color" id="hw-ink-wheel" aria-label="Ink: pick any color" title="Pick any color"></span></label>
+            <label>Accent ink <span class="pick"><select id="hw-accent"></select><input type="color" id="hw-accent-wheel" aria-label="Accent ink: pick any color" title="Pick any color"></span></label>
+            <label>Highlighter <span class="pick"><select id="hw-highlight"></select><input type="color" id="hw-highlight-wheel" aria-label="Highlighter: pick any color" title="Pick any color"></span></label>
             <label>Paper <select id="hw-paper"></select></label>
             <label>Page <select id="hw-size-page"></select></label>
             <label>Size <input type="range" id="hw-size" min="16" max="34" step="1"><output id="hw-size-out"></output></label>
@@ -164,7 +169,7 @@
         </div>
         <div id="idea-inspector" class="idea-inspector" hidden>
           <div><span class="eyebrow">SELECTED IDEA</span><p id="selected-text"></p></div>
-          <div class="inspector-actions"><button class="btn" type="button" id="edit-source">Edit source ↗</button><button class="btn" type="button" id="focus-selected">Focus</button><button class="btn" type="button" id="fold-selected">Fold branch</button><button class="btn quiet" type="button" id="close-inspector" aria-label="Close selected idea">×</button></div>
+          <div class="inspector-actions"><button class="btn" type="button" id="edit-source">Edit source ↗</button><button class="btn" type="button" id="focus-selected">Focus</button><button class="btn" type="button" id="edit-figure" hidden>✎ Edit drawing</button><button class="btn" type="button" id="fold-selected">Fold branch</button><button class="btn quiet" type="button" id="close-inspector" aria-label="Close selected idea">×</button></div>
         </div>
       </div>
       <footer class="board-footer"><span id="board-caption">One idea leads to another.</span><span>Made from your words.</span></footer>
@@ -202,11 +207,62 @@
       </dl>
     </form>
   </dialog>
+  <dialog id="draw" class="sheet-dialog draw-dialog" aria-labelledby="draw-title">
+    <div class="draw-wrap">
+      <header class="draw-head">
+        <h2 id="draw-title">Drawing</h2>
+        <label class="draw-caption">Caption <input id="draw-caption" type="text" placeholder="What this picture shows" autocomplete="off"></label>
+        <div class="draw-actions">
+          <button type="button" id="draw-undo" class="btn quiet" title="Undo (Ctrl+Z)">Undo</button>
+          <button type="button" id="draw-redo" class="btn quiet" title="Redo (Ctrl+Shift+Z)">Redo</button>
+          <button type="button" id="draw-cancel" class="btn quiet">Cancel</button>
+          <button type="button" id="draw-save" class="btn primary">Save to notes</button>
+        </div>
+      </header>
+      <div class="draw-tools" role="toolbar" aria-label="Drawing tools">
+        <div class="draw-tool-group" role="group" aria-label="Tool">
+          <button type="button" data-draw-tool="pen" aria-pressed="true" title="Pen">✎ Pen</button>
+          <button type="button" data-draw-tool="line" aria-pressed="false" title="Line (Shift: straight or 45°)">╱ Line</button>
+          <button type="button" data-draw-tool="arrow" aria-pressed="false" title="Arrow (Shift: straight or 45°)">→ Arrow</button>
+          <button type="button" data-draw-tool="rect" aria-pressed="false" title="Box">▭ Box</button>
+          <button type="button" data-draw-tool="ellipse" aria-pressed="false" title="Ellipse">◯ Ellipse</button>
+          <button type="button" data-draw-tool="text" aria-pressed="false" title="Text: click where it goes">T Text</button>
+          <button type="button" data-draw-tool="erase" aria-pressed="false" title="Eraser: click a stroke or shape">⌫ Erase</button>
+        </div>
+        <div class="draw-tool-group" role="group" aria-label="Color">
+          <span id="draw-swatches" class="swatches"></span>
+          <input type="color" id="draw-color" aria-label="Any color" title="Pick any color">
+        </div>
+        <div class="draw-tool-group">
+          <label>Width <input type="range" id="draw-width" min="1" max="14" value="3"><output id="draw-width-out">3</output></label>
+          <label class="draw-check"><input type="checkbox" id="draw-fill"> Fill</label>
+          <label class="draw-check"><input type="checkbox" id="draw-dash"> Dashed</label>
+        </div>
+        <div class="draw-tool-group">
+          <select id="draw-bg" aria-label="Paper"><option value="grid">Grid paper</option><option value="dots">Dot grid</option><option value="plain">Plain</option></select>
+          <select id="draw-size" aria-label="Size"><option value="" hidden>Picture size</option><option value="wide">Wide</option><option value="square">Square</option><option value="tall">Tall</option><option value="banner">Banner</option></select>
+          <button type="button" id="draw-photo" class="btn quiet" title="Put a picture underneath and draw on it">Picture…</button>
+          <input type="file" id="draw-photo-file" accept="image/*" hidden>
+          <button type="button" id="draw-clear" class="btn quiet">Clear</button>
+        </div>
+      </div>
+      <div class="draw-main">
+        <div class="draw-stage" id="draw-stage" data-tool="pen"><img id="draw-base" alt=""><div id="draw-items"></div></div>
+        <aside class="draw-graph">
+          <div class="draw-graph-head"><label for="draw-graph-spec">Math graph</label><select id="draw-graph-example" aria-label="Start from an example"><option value="">Start from an example…</option><option value="fn">Functions y = f(x)</option><option value="level">Level curves f(x, y) = k</option><option value="slope">Slope field dy/dx = f(x, y)</option><option value="vectors">Vectors and a parallelogram</option><option value="param">Parametric curves</option><option value="surface">3D surface with level curves</option></select></div>
+          <textarea id="draw-graph-spec" spellcheck="false" autocapitalize="off" placeholder="y = sin(x)&#10;level x^2 + y^2 = 1, 4&#10;vector 0,0 -> 2,1 | label v"></textarea>
+          <p id="draw-graph-errors" class="draw-graph-errors" role="status" aria-live="polite"></p>
+          <details><summary>How to write a graph</summary><pre id="draw-graph-help"></pre></details>
+        </aside>
+      </div>
+    </div>
+  </dialog>
   <div id="toast" class="toast" role="status" hidden><span id="toast-text"></span><button type="button" id="toast-undo">Undo</button></div>
 </div>
 <script src="js/parser.js"></script>
 <script src="js/mathtext.js"></script>
 <script src="js/structure.js"></script>
+<script src="js/figure.js"></script>
 <script src="js/layout.js"></script>
 <script src="js/render.js"></script>
 <script src="js/examples.js"></script>
@@ -216,6 +272,7 @@
 <script src="js/symbols.js"></script>
 <script src="js/hand.js"></script>
 <script src="vendor/jspdf-2.5.1.umd.min.js" defer></script>
+<script src="js/draw.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

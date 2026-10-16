@@ -13,7 +13,7 @@
   'use strict';
 
   // layout.js is loaded first in the browser; Node gets it with require.
-  const linkPath = (link) => (typeof VisualNotes !== 'undefined' ? VisualNotes : require('./layout.js')).linkPath(link);
+  const linkPath = (link) => (typeof VisualNotes !== 'undefined' && VisualNotes.linkPath ? VisualNotes : require('./layout.js')).linkPath(link);
   const mathHTML = (text) => (typeof VisualNotes !== 'undefined' && VisualNotes.mathHTML ? VisualNotes : require('./mathtext.js')).mathHTML(text);
 
   function esc(text) {
@@ -69,8 +69,8 @@
     return { cx: box.side > 0 ? box.x + box.w + 15 : box.x - 15, cy: box.y + box.h / 2, r: 11 };
   }
 
-  // The lines, boxes and words of the map, as SVG markup.
-  function mindMapMarkup(layout, theme, fonts, interactive) {
+  // The lines, boxes and words of the map, as SVG markup. figureSrc(id) gives a drawing's image.
+  function mindMapMarkup(layout, theme, fonts, interactive, figureSrc) {
     const out = [];
     out.push('<g class="links" fill="none" stroke-linecap="round">');
     for (const link of layout.links) {
@@ -88,6 +88,12 @@
       }
       out.push(`<g ${attrs.join(' ')}>`);
       out.push(`<rect width="${box.w}" height="${box.h}" rx="${n(s.rx)}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.strokeWidth}"${s.dash ? ` stroke-dasharray="${s.dash.join(' ')}"` : ''}/>`);
+      if (box.thumb) {
+        const src = figureSrc && figureSrc(box.node.figure);
+        const t = box.thumb;
+        out.push(`<rect x="${n(t.x)}" y="${n(t.y)}" width="${t.w}" height="${t.h}" fill="#ffffff" stroke="${theme.inkSoft}" stroke-width="0.6"/>`);
+        if (src) out.push(`<image href="${esc(src)}" x="${n(t.x)}" y="${n(t.y)}" width="${t.w}" height="${t.h}" preserveAspectRatio="xMidYMid meet"/>`);
+      }
       const padX = (box.w - Math.max(...box.rows.map((r) => r.width))) / 2;
       for (const row of box.rows) {
         const f = row.font;
@@ -110,14 +116,14 @@
   }
 
   // A complete, standalone SVG file for download.
-  function mindMapSVGFile(layout, theme, fonts, padding = 40) {
+  function mindMapSVGFile(layout, theme, fonts, padding = 40, figureSrc = null) {
     const b = layout.bounds;
     const w = Math.ceil(b.width + padding * 2);
     const h = Math.ceil(b.height + padding * 2);
     return `<?xml version="1.0" encoding="UTF-8"?>\n` +
       `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${n(b.minX - padding)} ${n(b.minY - padding)} ${w} ${h}">` +
       `<rect x="${n(b.minX - padding)}" y="${n(b.minY - padding)}" width="${w}" height="${h}" fill="${theme.paper}"/>` +
-      mindMapMarkup(layout, theme, fonts, false) +
+      mindMapMarkup(layout, theme, fonts, false, figureSrc) +
       '</svg>\n';
   }
 
@@ -132,7 +138,7 @@
   }
 
   // The same map drawn on a canvas, for PNG download. Returns the canvas.
-  function mindMapCanvas(layout, theme, fonts, { padding = 40, scale = 2 } = {}) {
+  function mindMapCanvas(layout, theme, fonts, { padding = 40, scale = 2, figureImage = null } = {}) {
     const b = layout.bounds;
     const w = b.width + padding * 2;
     const h = b.height + padding * 2;
@@ -171,6 +177,13 @@
         ctx.stroke();
         ctx.setLineDash([]);
       }
+      if (box.thumb) {
+        const t = box.thumb;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(box.x + t.x, box.y + t.y, t.w, t.h);
+        const img = figureImage && figureImage(box.node.figure);
+        if (img && img.complete && img.naturalWidth) ctx.drawImage(img, box.x + t.x, box.y + t.y, t.w, t.h);
+      }
       const padX = (box.w - Math.max(...box.rows.map((r) => r.width))) / 2;
       for (const row of box.rows) {
         ctx.font = fontCss(row.font, fonts);
@@ -195,6 +208,8 @@
   }
 
   const CALLOUT_ICONS = { theorem: '◆', definition: '≔', proof: '∴', warning: '⚠', tip: '✦', note: '✎' };
+
+  let figureSrcNow = null; // set while cardsHTML runs
 
   function itemHTML(node) {
     const m = mathHTML;
@@ -226,6 +241,12 @@
       case 'label':
         body = `<span class="label-text">${m(node.text)}</span>`;
         break;
+      case 'figure': {
+        const src = figureSrcNow && figureSrcNow(node.figure);
+        body = `<figure class="fig">${src ? `<img src="${esc(src)}" alt="${esc(node.text)}" loading="lazy">` : '<span class="fig-missing">This drawing is not in this notebook.</span>'}` +
+          `<figcaption><span>${m(node.text)}</span> <button type="button" class="fig-edit" data-figure-edit="${esc(node.figure)}" aria-label="Edit drawing: ${esc(node.text)}">✎ Edit</button></figcaption></figure>`;
+        break;
+      }
       case 'todo':
         body = `<span class="check" role="img" aria-label="${node.done ? 'Done' : 'To do'}">${node.done ? '✓' : ''}</span><span class="words">${m(node.text)}</span>`;
         break;
@@ -238,8 +259,12 @@
     return `<li class="${classes.join(' ')}"><div class="line">${star}${num}${body}<button class="source-link" type="button" data-source-line="${node.sourceLine}" aria-label="Edit source: ${esc(node.text)}">↗</button></div>${kids}</li>`;
   }
 
-  // The study-card board for the Cards view.
-  function cardsHTML(tree, cards) {
+  // The study-card board for the Cards view. figureSrc(id) gives a drawing's image.
+  function cardsHTML(tree, cards, figureSrc = null) {
+    figureSrcNow = figureSrc;
+    try { return boardHTML(tree, cards); } finally { figureSrcNow = null; }
+  }
+  function boardHTML(tree, cards) {
     const parts = [`<header class="board-head"><h2 class="board-title">${mathHTML(tree.title)}</h2></header>`];
     if (!cards.length) {
       parts.push('<p class="board-empty">Add a few lines under the first one and each branch gets its own card.</p>');

@@ -1,7 +1,8 @@
 /*
  * Course notebooks that ship with the site. Each one joins your desk once, the first time
- * you open the site after it was added (deleting it later is remembered). They are also in
- * the "Borrow a starting point" list, which adds a fresh copy.
+ * you open the site after it was added (deleting it later is remembered). Version 2 adds
+ * drawings; it replaces a copy you never edited and arrives beside one you did. They are
+ * also in the "Borrow a starting point" list, which adds a fresh copy.
  *
  * Written from the study notes of October 16, 2026.
  */
@@ -10,6 +11,8 @@
     COURSE_NOTES: [
       {
         id: 'course-2026-10-16-linear-algebra',
+        version: 2,
+        replaces: ["d5c5fba0"],
         label: 'Linear Algebra · Oct 16 (Lay 3.1–4.2)',
         date: '2026-10-16T12:00:00.000Z',
         text: `# Linear Algebra · Oct 16
@@ -37,6 +40,7 @@
 ## 3.2 Properties
 **INTUITION**
 - ! "The secret of determinants lies in how they change under row ops." Replacement = shear (area unchanged); swap = flips orientation (sign); scaling a row by k scales volume by k.
+  - ![A row replacement is a shear: same base, same height, same area](fig:la-shear)
 - So row-reduce to triangular, multiply pivots, fix sign for swaps. Product of pivots is unique up to sign even though echelon forms aren't.
 - det A = 0 ⇔ columns (or rows) dependent ⇔ parallelepiped is flat ⇔ squashes space down a dimension ⇔ not invertible (Thm 4, joins IMT).
 - det Aᵀ = det A (Thm 5) ⇒ every row fact is also a column fact.
@@ -57,7 +61,9 @@
 - Parameter systems (Laplace-transform engineering, Ex 2): unique solution exactly where det A(s) ≠ 0 (3s² − 12 ⇒ s ≠ ±2).
 - Adjugate formula: just Cramer applied to each column A x = e_j. Useful theoretically: integer A with det 1 ⇒ A⁻¹ integer.
 - Geometry: |det[a1 a2]| = parallelogram area; |det[a1 a2 a3]| = parallelepiped volume. Why: diagonal case is a rectangle/box; shearing (adding c·a1 to a2) slides the top along a parallel line/plane, keeping base and height.
+  - ![The parallelogram on a₁ and a₂ has area |det| of the matrix with columns a₁, a₂](fig:la-parallelogram)
 - ! T(x) = Ax multiplies EVERY area/volume by |det A| (any region with finite area, via grid of tiny squares → parallelograms). Translations don't change area. Ex: ellipse = image of unit disk under diag(a,b) ⇒ area πab. This is the Jacobian idea.
+  - ![T = diag(a, b) stretches the unit disk to an ellipse: area π becomes πab](fig:la-ellipse)
 - Sign of det = orientation (negative = flip); |det| = size.
 **EQUATIONS / PROCEDURE**
 - A_i(b) = A with column i replaced by b. Thm 7: x_i = det A_i(b) / det A (A invertible).
@@ -77,6 +83,7 @@
 **INTUITION**
 - A vector space = any "universe" closed under + and scalar ·, with the usual algebra rules. Vectors can be arrows (no coordinates), sequences, polynomials, functions, matrices. Think of a whole function f as ONE point.
 - Subspace = a smaller universe inside V that you can't escape by adding or scaling. Geometrically in R³: {0}, lines through 0, planes through 0, R³ itself.
+  - ![Subspaces of R³ pass through 0; a shifted plane does not](fig:la-subspaces)
 - ! Anything NOT through the origin (shifted line/plane, solutions of Ax = b with b ≠ 0) is not a subspace.
 - Span{v1..vp} is always a subspace; spanning vectors are "handles" for an infinite set.
 - R² is NOT a subspace of R³ (different-length vectors), though the x1x2-plane {(s,t,0)} "acts like" R².
@@ -96,12 +103,14 @@
 **INTUITION**
 - Two ways subspaces arise: (1) IMPLICITLY as solutions of homogeneous equations (Nul A — a test vectors must pass), (2) EXPLICITLY as all combos of given vectors (Col A — a recipe to build vectors).
 - Nul A = everything x → Ax crushes to 0 (lives in DOMAIN Rⁿ). Col A = everything Ax can reach = range (lives in CODOMAIN Rᵐ). For non-square A they live in different universes.
+  - ![Nul A lives in the domain and is crushed to 0; Col A is everything Ax can reach](fig:la-nul-col)
 - Nul A = {0} ⇔ one-to-one; Col A = Rᵐ ⇔ onto.
 - Homogeneous matters: Ax = b (b ≠ 0) solution set is a shifted copy of Nul A, not a subspace.
 - Kernel/range generalize to any linear T: V → W.
   - Differentiation D is linear: kernel = constants, range = all continuous functions.
   - ! Solutions of y'' + ω²y = 0 = kernel of y ↦ y'' + ω²y (homogeneous linear ODE solution sets are kernels — superposition principle!).
   - 2-day moving average M2{p_k} = {(p_k + p_{k−1})/2}: kernel = multiples of alternating signal {(−1)ᵏ} → it kills day-to-day zigzag but keeps trends.
+    - ![The 2-day moving average sends the zigzag (−1)ᵏ to 0, so it is in the kernel](fig:la-zigzag)
 **EQUATIONS / PROCEDURE**
 - Def: Nul A = {x ∈ Rⁿ : Ax = 0}. Thm 2: subspace of Rⁿ (A(u+v) = Au + Av = 0, A(cu) = cAu = 0).
 - Show set defined by homogeneous linear equations is a subspace: rewrite as Ax = 0, cite Thm 2 (Ex 2).
@@ -155,9 +164,12 @@
   - One per free variable, and they are automatically linearly independent.
 - Why is R² not a subspace of R³?
   - Its vectors have a different length. The x1x2-plane {(s,t,0)} only acts like R².`,
+        figures: {"la-parallelogram":{"w":640,"h":400,"bg":"plain","graph":"x: -0.6 .. 5\ny: -0.6 .. 3.6\nequal\npolygon 0,0; 3,1; 4,3; 1,2 | fill blue | label area = |3·2 − 1·1| = 5\nvector 0,0 -> 3,1 | red | label a₁ = (3, 1)\nvector 0,0 -> 1,2 | green | label a₂ = (1, 2)","items":[]},"la-shear":{"w":640,"h":400,"bg":"plain","graph":"x: -0.6 .. 6\ny: -0.6 .. 3\nequal\npolygon 0,0; 3,0; 3,2; 0,2 | fill gray | label area 6\npolygon 0,0; 3,0; 5,2; 2,2 | dashed fill orange\ntext 4.3,2.45 : a₂ → a₂ + c·a₁ slides the top\nvector 0,0 -> 3,0 | red | label a₁\nvector 0,0 -> 2,2 | orange | label a₂ + c·a₁\nsegment 5.4,0 -> 5.4,2 | gray dashed | label height stays 2","items":[]},"la-ellipse":{"w":640,"h":400,"bg":"plain","graph":"x: -2.6 .. 2.6\ny: -1.6 .. 1.6\nequal\nparam cos(t), sin(t) | blue | label unit disk, area π\nparam 2cos(t), sin(t) | red thick | label T(disk) with a = 2, b = 1: area 2π\nvector 0,0 -> 2,0 | red | label a\nvector 0,0 -> 0,1 | red | label b","items":[]},"la-subspaces":{"w":640,"h":440,"bg":"plain","graph":"3d\nx: -2 .. 2\ny: -2 .. 2\nz: -2 .. 3\naxes x₁, x₂, x₃\npolygon3 -1.6,-1.6,-0.08; 1.6,-1.6,1.04; 1.6,1.6,0.08; -1.6,1.6,-1.04 | fill blue | label plane through 0: a subspace\npolygon3 -1.6,-1.6,1.62; 1.6,-1.6,2.74; 1.6,1.6,1.78; -1.6,1.6,0.66 | fill red dashed | label shifted plane: not a subspace\nsegment3 -1.8,1.8,-1.4 -> 1.8,-1.8,1.4 | green thick | label line through 0\npoint3 0,0,0 | black | label 0","items":[]},"la-nul-col":{"w":640,"h":380,"bg":"plain","graph":"","items":[{"t":"ellipse","cx":170,"cy":200,"rx":135,"ry":125,"c":"gray","sw":2},{"t":"text","x":60,"y":52,"s":"Rⁿ  (domain: one entry per column)","c":"gray","size":15},{"t":"ellipse","cx":475,"cy":200,"rx":135,"ry":125,"c":"gray","sw":2},{"t":"text","x":372,"y":52,"s":"Rᵐ  (codomain: one entry per row)","c":"gray","size":15},{"t":"ellipse","cx":150,"cy":250,"rx":75,"ry":45,"c":"blue","sw":2,"fill":"blue"},{"t":"text","x":112,"y":256,"s":"Nul A","c":"blue","size":20},{"t":"ellipse","cx":495,"cy":165,"rx":90,"ry":62,"c":"green","sw":2,"fill":"green"},{"t":"text","x":450,"y":160,"s":"Col A","c":"green","size":20},{"t":"text","x":430,"y":184,"s":"all the Ax","c":"green","size":14},{"t":"ellipse","cx":455,"cy":285,"rx":5,"ry":5,"c":"black","sw":2,"fill":"black"},{"t":"text","x":468,"y":292,"s":"0","c":"black","size":18},{"t":"line","x1":215,"y1":238,"x2":446,"y2":282,"c":"blue","sw":2.2,"arrow":1},{"t":"line","x1":200,"y1":272,"x2":446,"y2":287,"c":"blue","sw":2.2,"arrow":1},{"t":"text","x":262,"y":300,"s":"Ax = 0","c":"blue","size":15},{"t":"ellipse","cx":120,"cy":140,"rx":4,"ry":4,"c":"black","sw":2,"fill":"black"},{"t":"text","x":100,"y":132,"s":"x","c":"black","size":18},{"t":"line","x1":126,"y1":138,"x2":448,"y2":160,"c":"green","sw":2.2,"arrow":1},{"t":"text","x":250,"y":130,"s":"x ↦ Ax","c":"green","size":16},{"t":"text","x":40,"y":360,"s":"Nul A: a test vectors must pass (Ax = 0)   ·   Col A: a recipe to build vectors (Ax)","c":"black","size":14}]},"la-zigzag":{"w":640,"h":320,"bg":"plain","graph":"x: -0.5 .. 8.5\ny: -1.6 .. 1.8\naxes k, p\nsegment 0,1 -> 1,-1 | gray thin\nsegment 1,-1 -> 2,1 | gray thin\nsegment 2,1 -> 3,-1 | gray thin\nsegment 3,-1 -> 4,1 | gray thin\nsegment 4,1 -> 5,-1 | gray thin\nsegment 5,-1 -> 6,1 | gray thin\nsegment 6,1 -> 7,-1 | gray thin\nsegment 7,-1 -> 8,1 | gray thin\npoint 0,1 | blue\npoint 1,-1 | blue\npoint 2,1 | blue\npoint 3,-1 | blue\npoint 4,1 | blue\npoint 5,-1 | blue\npoint 6,1 | blue\npoint 7,-1 | blue\npoint 8,1 | blue\ny = 0 | red thick | label M2 gives (1 + (−1))/2 = 0 every day","items":[]}},
       },
       {
         id: 'course-2026-10-16-differential-equations',
+        version: 2,
+        replaces: ["a617e8e6"],
         label: 'Differential Equations · Oct 16 (Zill 4.1–4.2)',
         date: '2026-10-16T12:00:00.000Z',
         text: `# Differential Equations · Oct 16
@@ -171,6 +183,7 @@
 **INTUITION**
 - nth-order linear DE needs n facts to pin down one curve. IVP = all n facts at ONE point x₀ (2nd order: curve passes through (x₀, y₀) with slope y₁) — like launching a car with known position + speed; path is determined.
 - BVP = facts at DIFFERENT points (graph must pass through (a, y₀) AND (b, y₁)) — like a string/beam pinned at both ends, or aiming a cannon at a target: one angle, many, or none may work.
+  - ![IVP: value and slope at one point. BVP: values at two points](fig:de-ivp-bvp)
   - ! So BVPs can have many, one, or no solutions even when Thm 4.1.1's hypotheses hold.
 - If a_n(x) = 0 somewhere, the equation "loses its top derivative" there; uniqueness (even existence) can fail.
 **EQUATIONS**
@@ -182,6 +195,7 @@
 - BVP (2nd order): a₂y'' + a₁y' + a₀y = g, y(a) = y₀, y(b) = y₁ — "two-point BVP"; prescribed values = boundary conditions (BC). Solution must hold on I containing a and b.
 - Other BC pairs: y'(a) = y₀, y(b) = y₁; y(a) = y₀, y'(b) = y₁; y'(a) = y₀, y'(b) = y₁ — all special cases of α₁y(a) + β₁y'(a) = γ₁, α₂y(b) + β₂y'(b) = γ₂.
 - Ex 3 (x'' + 16x = 0, family x = c₁cos4t + c₂sin4t):
+  - ![Ex 3: x = c₂ sin 4t with x(0) = 0. Every c₂ hits x(π/2) = 0; only c₂ = 0 hits x(π/8) = 0; none hits x(π/2) = 1](fig:de-bvp-ex3)
   - (a) x(0) = 0, x(π/2) = 0: c₁ = 0, then 0 = c₂ sin2π true for all c₂ → infinitely many solutions x = c₂ sin4t.
   - (b) x(0) = 0, x(π/8) = 0: c₁ = 0, 0 = c₂ sin(π/2) = c₂ → x = 0 only solution.
   - (c) x(0) = 0, x(π/2) = 1: c₁ = 0, 1 = c₂·0 contradiction → no solution.
@@ -225,6 +239,7 @@
   - Proof (n = 2): pick t in I with W(y₁(t), y₂(t)) ≠ 0; let Y(t) = k₁, Y'(t) = k₂. Solve C₁y₁(t) + C₂y₂(t) = k₁, C₁y₁'(t) + C₂y₂'(t) = k₂ — solvable uniquely since coefficient determinant = Wronskian ≠ 0. G = C₁y₁ + C₂y₂ solves DE with same ICs as Y → by uniqueness Y = G.
   - Insight: the Wronskian is literally the determinant you need nonzero to fit any initial condition.
 - Ex 7: y'' − 9y = 0, y₁ = e^{3x}, y₂ = e^{−3x}; W = −6 ≠ 0 → fundamental set; y = c₁e^{3x} + c₂e^{−3x}.
+  - ![Ex 7–8: e^{3x}, e^{−3x}, and 4 sinh 3x − 5e^{−3x} = 2e^{3x} − 7e^{−3x} in the same family](fig:de-family)
 - Ex 8: y = 4sinh3x − 5e^{−3x} is in that family: c₁ = 2, c₂ = −7. (Different-looking answers can be the same general solution.)
 - Ex 9: y''' − 6y'' + 11y' − 6y = 0, y₁ = eˣ, y₂ = e^{2x}, y₃ = e^{3x}; W = 2e^{6x} ≠ 0 → y = c₁eˣ + c₂e^{2x} + c₃e^{3x} on (−∞, ∞).
 **PROBLEM-SOLVING (show a fundamental set / write general solution)**
@@ -241,6 +256,7 @@
 - Particular solution y_p = any one solution of (7) with no arbitrary parameters.
 - Why y_c + y_p works: L sends c₁y₁ + … + c_ky_k to 0 and sends y_p to g, so L(sum) = 0 + g = g.
 - ! Geometric picture: solution set = one particular point + the whole homogeneous solution space (a shifted plane). Linear algebra twin: solutions of Ax = b = x_p + null space.
+  - ![All solutions of L(y) = g are y_p plus the solution plane of L(y) = 0](fig:de-shifted-plane)
 - y_c = system's natural/free behavior; y_p = response to the forcing g.
 - Superposition for inputs: split a complicated g into pieces, find a y_p for each piece, add them (set up for undetermined coefficients in §4.4).
 **EQUATIONS**
@@ -268,6 +284,7 @@
 - Fins = passive extensions on equipment (e.g., car radiator) that increase surface area so heat dissipates faster.
 - Modeling recipe: assumptions → conservation laws (energy/mass) → physical laws. Unknown: T(x,y,z).
 - Setup: wall at constant T_wall, fin in fluid at T_fluid < T_wall. Heat conducts along fin and is removed at the fin–fluid surface.
+  - ![The cooling fin: heat Qₓ flows in, Q(x + Δx) flows out, convection carries the rest away](fig:de-fin)
 - Assumptions: homogeneous, isotropic material; fin thin so ∂T/∂x ≫ ∂T/∂y, ∂T/∂z → T ≈ T(x): 3D problem becomes 1D (fin length L).
 - Element Δx: heat in Q_x, heat out Q_{x+Δx}, heat lost by convection.
 - Energy balance: Q_x − Q_{x+Δx} = Q_convection; Q_convection = hCΔx(T − T_fluid), C = perimeter, h = heat transfer coefficient. Steady state.
@@ -277,6 +294,7 @@
 - Related problems:
   1. Constant A → T'' − α²(T − T_fluid) = 0, α² = hC/(kA), solve with BCs, rewrite using θ = (T − T_fluid)/(T_wall − T_fluid) and cosh.
   2. Sketch θ vs x/L with αL = 2.
+    - ![θ = (T − T_fluid)/(T_wall − T_fluid) along the fin: θ = cosh(αL(1 − x/L)) / cosh(αL)](fig:de-fin-theta)
   3. Re-solve with BCs T(0) = T_wall, T(L) = T_fluid.
 - Intuition: a real BVP — conditions at both ends of the fin; θ decays from 1 at the wall.
 
@@ -299,6 +317,7 @@
 - **Theorem 4.2.1 (Reduction of Order):** y₁ solution of (3) on I, y₁(x) ≠ 0 on I → (5) y₂(x) = y₁(x) ∫ [e^{−∫P(x)dx} / y₁²(x)] dx is a second solution on I.
 - Independence: W(y₁, y₂) = e^{−∫P(x)dx} ≠ 0 on any I where y₁ ≠ 0.
 - Ex 2: y₁ = x² solves x²y'' − 3xy' + 4y = 0 on (0, ∞). Standard form y'' − (3/x)y' + (4/x²)y = 0 → P = −3/x, e^{−∫P} = x³. y₂ = x²∫x³/x⁴ dx = x² ln x. General: y = c₁x² + c₂x² ln x.
+  - ![Ex 2 (reduction of order): y₂/y₁ = ln x is not constant, so x² and x² ln x are independent](fig:de-reduction)
 - Remarks:
   - (i) (5) is used again in §4.7 and §6.3; instructor decides whether to memorize (5) or use first-principles substitution.
   - (ii) Reduction of order also gives the general solution of NONhomogeneous a₂y'' + a₁y' + a₀y = g(x) when y₁ of the homogeneous eq is known (Exercises 4.2 #19–22).
@@ -341,9 +360,12 @@
   - Using a₁ instead of a₁/a₂. Divide by a₂ first to get standard form.
 - What are the boundary conditions for the cooling fin?
   - T = T_wall at x = 0, and dT/dx = 0 at x = L (insulated tip).`,
+        figures: {"de-ivp-bvp":{"w":640,"h":400,"bg":"plain","graph":"x: -0.4 .. 4.6\ny: -0.4 .. 3.6\ngrid off\ny = 2.6 + 0.6sin(x - 1) | blue | label IVP: one curve\npoint 1,2.6 | blue | label (x₀, y₀)\nsegment 0.3,2.18 -> 1.7,3.02 | blue dashed\ntext 0.55,3.15 : slope y₁\ny = 0.5 + 1.5(x - 0.5)/3.5 + 0.6sin(pi(x - 0.5)/3.5) | red | label BVP\npoint 0.5,0.5 | red | label y(a) = y₀\npoint 4,2 | red | label y(b) = y₁","items":[]},"de-bvp-ex3":{"w":640,"h":400,"bg":"plain","graph":"x: -0.1 .. 1.8\ny: -1.3 .. 1.4\naxes t, x\ny = sin(4x) | blue | label c₂ = 1\ny = 0.5sin(4x) | green | label c₂ = 0.5\ny = -0.7sin(4x) | purple | label c₂ = −0.7\npoint 0,0 | black\npoint pi/2,0 | black | label (a) every c₂ passes\nx = pi/8 | gray dashed | label (b) at t = π/8 only c₂ = 0 gives 0\npoint pi/2,1 | red | label (c) none reach","items":[]},"de-shifted-plane":{"w":640,"h":440,"bg":"plain","graph":"3d\nx: -2 .. 2\ny: -2 .. 2\nz: -1.5 .. 3.5\npolygon3 -1.6,-1.6,-0.72; 1.6,-1.6,0.08; 1.6,1.6,0.72; -1.6,1.6,-0.08 | fill blue | label y_c = c₁y₁ + c₂y₂ (through 0)\npolygon3 -1.6,-1.6,1.28; 1.6,-1.6,2.08; 1.6,1.6,2.72; -1.6,1.6,1.92 | fill green | label y_c + y_p (a shifted copy)\nvector3 0,0,0 -> 1.2,-1.2,2.06 | red thick | label y_p\npoint3 0,0,0 | black | label 0","items":[]},"de-family":{"w":640,"h":400,"bg":"plain","graph":"x: -1 .. 1\ny: -8 .. 8\ny = e^(3x) | blue | label y₁ = e³ˣ\ny = e^(-3x) | green | label y₂ = e⁻³ˣ\ny = 4sinh(3x) - 5e^(-3x) | red thick | label c₁ = 2, c₂ = −7","items":[]},"de-reduction":{"w":640,"h":400,"bg":"plain","graph":"x: 0 .. 2.6\ny: -1 .. 6\ny = x^2 | blue | label y₁ = x²\ny = x^2 ln(x) | red | label y₂ = x² ln x\ny = ln(x) | gray dashed | label y₂/y₁ = ln x","items":[]},"de-fin":{"w":640,"h":360,"bg":"plain","graph":"","items":[{"t":"rect","x":40,"y":40,"w":60,"h":270,"c":"brown","sw":2,"fill":"brown"},{"t":"text","x":26,"y":30,"s":"wall: T = T_wall","c":"brown","size":15},{"t":"rect","x":100,"y":150,"w":460,"h":60,"c":"orange","sw":2,"fill":"orange"},{"t":"text","x":400,"y":238,"s":"fin, length L","c":"orange","size":15},{"t":"text","x":250,"y":60,"s":"fluid at T_fluid < T_wall","c":"teal","size":16},{"t":"rect","x":300,"y":150,"w":60,"h":60,"c":"red","sw":2.5,"dash":true},{"t":"text","x":318,"y":232,"s":"Δx","c":"red","size":17},{"t":"line","x1":232,"y1":180,"x2":297,"y2":180,"c":"red","sw":3,"arrow":1},{"t":"text","x":214,"y":172,"s":"Qₓ","c":"red","size":18},{"t":"line","x1":362,"y1":180,"x2":425,"y2":180,"c":"red","sw":3,"arrow":1},{"t":"text","x":380,"y":140,"s":"Q(x + Δx)","c":"red","size":16},{"t":"line","x1":330,"y1":148,"x2":330,"y2":92,"c":"blue","sw":2.5,"arrow":1},{"t":"line","x1":330,"y1":212,"x2":330,"y2":268,"c":"blue","sw":2.5,"arrow":1},{"t":"text","x":342,"y":100,"s":"hC·Δx·(T − T_fluid)","c":"blue","size":15},{"t":"line","x1":100,"y1":318,"x2":590,"y2":318,"c":"black","sw":1.8,"arrow":1},{"t":"text","x":596,"y":323,"s":"x","c":"black","size":16},{"t":"text","x":94,"y":342,"s":"0","c":"black","size":15},{"t":"text","x":552,"y":342,"s":"L","c":"black","size":15},{"t":"text","x":440,"y":296,"s":"tip: dT/dx = 0","c":"black","size":15}]},"de-fin-theta":{"w":640,"h":400,"bg":"plain","graph":"x: 0 .. 1.05\ny: 0 .. 1.1\naxes x/L, θ\ny = cosh(2(1 - x))/cosh(2) | red thick | label αL = 2\ny = cosh(1 - x)/cosh(1) | blue dashed | label αL = 1\npoint 0,1 | black | label wall: θ = 1\npoint 1,1/cosh(2) | red | label insulated tip: θ' = 0","items":[]}},
       },
       {
         id: 'course-2026-10-16-calculus-3',
+        version: 2,
+        replaces: ["9a6ef96b"],
         label: 'Calculus III · Oct 16 (Stewart 14.1–14.6)',
         date: '2026-10-16T12:00:00.000Z',
         text: `# Calculus III · Oct 16
@@ -352,6 +374,7 @@
 **INTUITION**
 - f(x,y) = a machine taking a point in the plane, returning one number (temperature at a location, height of terrain). Graph z = f(x,y) is a SURFACE over the domain.
 - ! Level curves f(x,y) = k = contour lines on a topographic map. Tightly packed contours = steep; spread out = gentle.
+  - ![Level curves are the horizontal traces z = k, dropped onto the xy-plane](fig:c3-paraboloid)
 - Traces/cross-sections: slice the surface with x = const or y = const planes to get 1-variable curves.
 - 3 variables f(x,y,z): graph lives in 4D; use LEVEL SURFACES f(x,y,z) = k instead (e.g., nested spheres for x² + y² + z²).
 - Examples in text: wind-chill/heat index tables, Cobb-Douglas production P = bL^α K^(1−α).
@@ -372,6 +395,7 @@
 - Ex 7: Cobb-Douglas surface: P increases as L or K increases.
 - Ex 8: h = 4x² + y²: D = ℝ², range [0,∞); elliptic paraboloid; horizontal traces ellipses, vertical traces parabolas.
 - Fig 10 examples: (x² + 3y²)e^(−x² − y²) flat far away; sin x + sin y egg-crate; sin x sin y/(xy).
+  - ![Fig 10: z = sin x + sin y, the egg crate](fig:c3-egg-crate)
 - Level curve def: f(x,y) = k, k in range. Contour map = collection of level curves, equally spaced k.
   - Level curves = horizontal traces at z = k projected down; mentally LIFT them to rebuild the surface. Close curves = steep; far apart = flat.
 - Real-world: topographic maps, isothermals, isobars (winds flow high → low pressure, strongest where isobars tightly packed), precipitation maps.
@@ -379,8 +403,10 @@
 - Ex 10: 6 − 3x − 2y = k → parallel lines slope −3/2, equally spaced (graph is a plane).
 - Ex 11: √(9 − x² − y²) = k → circles radius √(9 − k²); circles bunch up near the edge.
 - Ex 12: 4x² + y² + 1 = k → ellipses with semiaxes ½√(k−1), √(k−1) for k > 1.
+  - ![Ex 12: level curves 4x² + y² + 1 = k are ellipses, closer together where it is steeper](fig:c3-ellipses)
 - Ex 13: Cobb-Douglas contours: for fixed P, as L ↑, K ↓ (trade-off).
 - Fig 20: −xye^(−x² − y²) two hills/two valleys; −3y/(x² + y² + 1): contours crowd near origin ⇔ graph steep near origin.
+  - ![Fig 20: −xy e^{−x²−y²}: two hills (red) and two valleys (blue)](fig:c3-hills)
 - Ex 14: f = ln(z − y) + xy sin z → D = {z > y}, a half-space above plane z = y.
 - Ex 15: x² + y² + z² = k → concentric spheres radius √k. Ex 16: x² − y − z² = k → family of hyperbolic paraboloids (shifted saddles).
 - n variables: f(x₁..x_n); e.g. cost C = c·x (dot product). Three views: n real variables, one point variable, one vector variable.
@@ -407,6 +433,7 @@
 - DNE rule: f → L₁ along C₁ and f → L₂ along C₂ with L₁ ≠ L₂ ⇒ DNE.
 - Ex 1: (x² − y²)/(x² + y²): x-axis → 1, y-axis → −1 ⇒ DNE.
 - Ex 2: xy/(x² + y²): both axes give 0 (NOT enough!), y = x gives 1/2 ⇒ DNE.
+  - ![xy/(x² + y²) near (0, 0): different values along different lines, so no limit](fig:c3-two-paths)
 - Ex 3: xy²/(x² + y⁴): every line gives 0, parabola x = y² gives 1/2 ⇒ DNE.
   - Lesson: all lines agreeing proves nothing.
 - Limit laws carry over. Polynomials/rationals: direct substitution if (a,b) in domain. Ex 4: x²y³ − x³y² + 3x + 2y at (1,2) = 11. Ex 5: (x²y + 1)/(x³y² − 2x) at (−2,3) = −13/68.
@@ -464,6 +491,7 @@
 **TEXTBOOK DETAILS**
 - Tangent plane = plane containing T₁ and T₂ (later: contains tangent lines of ALL curves on S through P).
 - Ex 1: z = 2x² + y² at (1,1,3) → z = 4x + 2y − 3. f(1.1, 0.95) ≈ 3.3 vs true 3.3225; far away (2,3): 11 vs 17.
+  - ![Ex 1: the tangent plane z = 4x + 2y − 3 touches z = 2x² + y² at (1, 1, 3)](fig:c3-tangent-plane)
 - WARNING: f = xy/(x² + y²), f(0,0) = 0: partials at origin both 0 but f = 1/2 on y = x → need differentiability.
 - Theorem 8: f_x, f_y exist near (a,b) and continuous at (a,b) ⇒ differentiable.
 - Ex 2: f = xe^(xy) at (1,0): L = x + y; f(1.1, −0.1) ≈ 1 vs actual ≈ 0.98542.
@@ -475,6 +503,7 @@
 ## 14.5 The chain rule
 **INTUITION**
 - ! Dependency tree: output depends on intermediate variables, which depend on independent variables. To get the effect of t on z, add up ALL paths from z down to t; multiply derivatives along each path.
+  - ![Chain rule tree: multiply along each path from z down to s, then add the paths](fig:c3-chain-tree)
 - Physical: temperature T(x,y) felt by a moving bug at (x(t), y(t)) → dT/dt combines spatial change with the bug's motion.
 **EQUATIONS / PROBLEM-SOLVING**
 - Case 1: z = f(x,y), x = g(t), y = h(t): dz/dt = (∂z/∂x)(dx/dt) + (∂z/∂y)(dy/dt).
@@ -502,6 +531,7 @@
 - f_x, f_y only give slopes east/north. D_u f = slope of the surface walking in ANY direction u (unit vector).
 - ! ∇f = the arrow pointing UPHILL most steeply; its length = that steepest slope. −∇f = steepest descent; ⊥ to ∇f = no change (walking along a contour).
 - D_u f = ∇f·u = |∇f|cosθ → max along ∇f, 0 when perpendicular, min when opposite.
+  - ![D_u f = ∇f·u = |∇f| cos θ: largest along ∇f, zero along the contour](fig:c3-directional)
 - ∇f is perpendicular to level curves (2D) and level surfaces (3D) → a NORMAL vector → tangent planes to implicit surfaces.
 - On a contour map, gradient arrows cross contours at right angles, longer where contours are close.
 **EQUATIONS / PROBLEM-SOLVING**
@@ -529,6 +559,7 @@
 - Ex 9: z = 2x² + y² at (1,1,3) via F = 2x² + y² − z: z = 4x + 2y − 3 (same as 14.4 Ex 1).
 - Summary: (1) D_u f = ∇f·u; (2) ∇f points in direction of max increase, max rate = |∇f|; (3) ∇f ⊥ level curve/surface through the point.
 - Curve of steepest ascent crosses every contour at right angles. Gradient field of x² − y²: arrows uphill, ⊥ hyperbolic level curves.
+  - ![Gradient field of x² − y²: arrows point uphill and cross every level curve at a right angle](fig:c3-gradient-field)
 - Note: 14.1–14.6 textbook pages read from MindTap; exercises not included.
 
 ## Chapter connections
@@ -561,6 +592,7 @@
   - Steep. Far apart means gentle or flat.
 - What does the domain need for √(stuff), ln(stuff) and fractions?
   - √ needs stuff ≥ 0, ln needs stuff > 0, denominators ≠ 0.`,
+        figures: {"c3-paraboloid":{"w":640,"h":440,"bg":"plain","graph":"3d\nx: -2 .. 2\ny: -2 .. 2\nz: 0 .. 8\nsurface z = x^2 + y^2 | levels 1, 2, 4, 6 | floor | label z = x² + y²: traces at z = 1, 2, 4, 6","items":[]},"c3-ellipses":{"w":520,"h":440,"bg":"plain","graph":"x: -2 .. 2\ny: -3.2 .. 3.2\nequal\nlevel 4x^2 + y^2 + 1 = 2, 3, 5, 7, 10 | blue","items":[]},"c3-egg-crate":{"w":640,"h":420,"bg":"plain","graph":"3d\nx: -pi .. pi\ny: -pi .. pi\nz: -2 .. 2\nsurface z = sin(x) + sin(y) | mesh 18 | teal","items":[]},"c3-hills":{"w":520,"h":460,"bg":"plain","graph":"x: -2.4 .. 2.4\ny: -2.4 .. 2.4\nequal\nlevel -x y e^(-x^2 - y^2) = 0.03, 0.08, 0.14 | red | label hill\nlevel -x y e^(-x^2 - y^2) = -0.03, -0.08, -0.14 | blue | label valley","items":[]},"c3-two-paths":{"w":520,"h":460,"bg":"plain","graph":"x: -2 .. 2\ny: -2 .. 2\nequal\ny = 0 | gray thick | label x-axis: 0\ny = x | red thick | label y = x: 1/2\ny = -x | blue thick | label y = −x: −1/2\ny = 2x | green | label y = 2x: 2/5\nparam t^2, t | t: -1.5 .. 1.5 | purple dashed | label x = y²: 1/2 for xy²/(x²+y⁴)\npoint 0,0 | black","items":[]},"c3-tangent-plane":{"w":640,"h":440,"bg":"plain","graph":"3d\nx: -1.6 .. 1.6\ny: -1.6 .. 1.6\nz: 0 .. 8\nsurface z = 2x^2 + y^2 | mesh 12 | blue\npolygon3 0.45,0.45,-0.3; 1.55,0.45,4.1; 1.55,1.55,6.3; 0.45,1.55,1.9 | fill orange | label tangent plane\npoint3 1,1,3 | red | label (1, 1, 3)","items":[]},"c3-chain-tree":{"w":600,"h":400,"bg":"plain","graph":"","items":[{"t":"text","x":290,"y":52,"s":"z","c":"black","size":28},{"t":"text","x":12,"y":52,"s":"dependent","c":"gray","size":13},{"t":"text","x":150,"y":190,"s":"x","c":"blue","size":26},{"t":"text","x":430,"y":190,"s":"y","c":"green","size":26},{"t":"text","x":12,"y":190,"s":"intermediate","c":"gray","size":13},{"t":"text","x":84,"y":330,"s":"s","c":"blue","size":24},{"t":"text","x":212,"y":330,"s":"t","c":"blue","size":24},{"t":"text","x":366,"y":330,"s":"s","c":"green","size":24},{"t":"text","x":494,"y":330,"s":"t","c":"green","size":24},{"t":"text","x":12,"y":300,"s":"independent","c":"gray","size":13},{"t":"line","x1":288,"y1":62,"x2":162,"y2":168,"c":"blue","sw":2,"arrow":0},{"t":"line","x1":302,"y1":62,"x2":430,"y2":168,"c":"green","sw":2,"arrow":0},{"t":"line","x1":152,"y1":200,"x2":92,"y2":306,"c":"blue","sw":2,"arrow":0},{"t":"line","x1":160,"y1":200,"x2":216,"y2":306,"c":"blue","sw":2,"arrow":0},{"t":"line","x1":432,"y1":200,"x2":372,"y2":306,"c":"green","sw":2,"arrow":0},{"t":"line","x1":440,"y1":200,"x2":497,"y2":306,"c":"green","sw":2,"arrow":0},{"t":"text","x":172,"y":112,"s":"∂z/∂x","c":"blue","size":15},{"t":"text","x":372,"y":112,"s":"∂z/∂y","c":"green","size":15},{"t":"text","x":70,"y":262,"s":"∂x/∂s","c":"blue","size":14},{"t":"text","x":192,"y":262,"s":"∂x/∂t","c":"blue","size":14},{"t":"text","x":352,"y":262,"s":"∂y/∂s","c":"green","size":14},{"t":"text","x":474,"y":262,"s":"∂y/∂t","c":"green","size":14},{"t":"text","x":60,"y":385,"s":"∂z/∂s = (∂z/∂x)(∂x/∂s) + (∂z/∂y)(∂y/∂s)","c":"black","size":17}]},"c3-directional":{"w":560,"h":460,"bg":"plain","graph":"x: -0.4 .. 2.6\ny: -0.4 .. 2.4\nequal\nlevel x^2 + y^2 = 0.5, 2, 3.5 | gray\npoint 1,1 | black | label P\nvector 1,1 -> 1.75,1.75 | red thick | label ∇f (steepest)\nvector 1,1 -> 1.94,0.66 | blue thick | label u\nsegment 0.4,1.6 -> 1.6,0.4 | green dashed | label D_u f = 0 along the contour\ntext 1.45,1.08 : θ","items":[]},"c3-gradient-field":{"w":520,"h":460,"bg":"plain","graph":"x: -2 .. 2\ny: -2 .. 2\nequal\nlevel x^2 - y^2 = -2, -1, 1, 2 | blue quiet\nfield 2x, -2y | red n 10","items":[]}},
       },
     ],
   });

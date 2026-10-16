@@ -19,6 +19,17 @@
     indie: { label: 'Indie Flower (round)', family: 'Indie Flower', scale: 1.0 },
     shadows: { label: 'Shadows Into Light (tall)', family: 'Shadows Into Light', scale: 1.12 },
     homemade: { label: 'Homemade Apple (cursive)', family: 'Homemade Apple', scale: 0.82 },
+    dancing: { label: 'Dancing Script (flowing cursive)', family: 'Dancing Script', scale: 1.18 },
+    gloria: { label: 'Gloria Hallelujah (comic)', family: 'Gloria Hallelujah', scale: 0.86 },
+    architects: { label: "Architects Daughter (drafting print)", family: 'Architects Daughter', scale: 0.9 },
+    delius: { label: 'Delius (rounded and tidy)', family: 'Delius', scale: 0.94 },
+    comingsoon: { label: 'Coming Soon (careful print)', family: 'Coming Soon', scale: 0.9 },
+    nanum: { label: 'Nanum Pen Script (fine pen)', family: 'Nanum Pen Script', scale: 1.15 },
+    covered: { label: 'Covered By Your Grace (casual)', family: 'Covered By Your Grace', scale: 1.12 },
+    justhand: { label: 'Just Another Hand (tall, narrow)', family: 'Just Another Hand', scale: 1.4 },
+    reenie: { label: 'Reenie Beanie (rushed)', family: 'Reenie Beanie', scale: 1.22 },
+    marker: { label: 'Permanent Marker (marker caps)', family: 'Permanent Marker', scale: 0.82 },
+    rocksalt: { label: 'Rock Salt (scratchy)', family: 'Rock Salt', scale: 0.66 },
   };
 
   //   weight: extra stroke around each letter (thicker pens)
@@ -42,6 +53,12 @@
     green: { label: 'Green', color: '#1e6b3a' },
     purple: { label: 'Purple', color: '#5b2a86' },
     teal: { label: 'Teal', color: '#11706f' },
+    navy: { label: 'Navy', color: '#14234f' },
+    brown: { label: 'Brown', color: '#6b4226' },
+    orange: { label: 'Orange', color: '#c4560f' },
+    pink: { label: 'Pink', color: '#c2266f' },
+    maroon: { label: 'Maroon', color: '#7a1631' },
+    forest: { label: 'Forest', color: '#24492c' },
     white: { label: 'Chalk white', color: '#f3f1e7' },
     yellow: { label: 'Chalk yellow', color: '#f2dc7a' },
   };
@@ -51,6 +68,8 @@
     green: { label: 'Green', color: '#a8f08c' },
     pink: { label: 'Pink', color: '#ffa3cf' },
     blue: { label: 'Blue', color: '#9fd8ff' },
+    orange: { label: 'Orange', color: '#ffbf6b' },
+    purple: { label: 'Purple', color: '#d4b5ff' },
     none: { label: 'None', color: null },
   };
 
@@ -275,6 +294,20 @@
         highlighter(ctx, line.x - 5, line.x + line.width + 6, line.y, line.size, rand, s.highlight);
       });
       ctx.globalCompositeOperation = 'source-over';
+    }
+
+    // Drawings go on the paper too, a touch transparent on ruled paper so the lines show through.
+    for (const line of page.lines) {
+      const f = line.figure;
+      const img = f && s.figureImage && s.figureImage(f.id);
+      if (!img || !img.complete || !img.naturalWidth) continue;
+      ctx.save();
+      ctx.globalAlpha = s.paper === 'chalkboard' ? 0.92 : 0.96;
+      ctx.drawImage(img, f.x, f.y, f.w, f.h);
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.18)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(f.x, f.y, f.w, f.h);
+      ctx.restore();
     }
 
     // Writing goes on its own layer first, so pencil grain only eats into the ink.

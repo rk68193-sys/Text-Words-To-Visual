@@ -88,6 +88,7 @@
    * or a short line ending in a colon (Light reactions:). Bullets are never labels.
    */
   function isLabel(body) {
+    if (FIGURE.test(body)) return false;
     if (BOLD_LINE.test(body)) return true;
     if (/[?.!=]$/.test(body) || /[=→]/.test(body)) return false;
     const words = body.replace(/\([^)]*\)/g, ' ').trim();
@@ -101,10 +102,15 @@
     return hit ? hit[0] : 'note';
   }
 
+  // ![Caption](fig:abc) puts a drawing or graph from the notebook into the notes.
+  const FIGURE = /^!\[([^\]]*)\]\(fig:([\w-]{1,64})\)\s*$/;
+
   // Reads one line of text and works out what kind of idea it is.
   function describe(rawText) {
     let text = rawText.trim();
     const idea = { text: '', kind: 'text', important: false };
+    const figure = FIGURE.exec(text);
+    if (figure) return Object.assign(idea, { kind: 'figure', figure: figure[2], text: figure[1].trim() || 'Drawing', raw: text });
 
     if (/^\*\*.+\*\*$/.test(text) || /^__.+__$/.test(text)) idea.important = true;
     text = cleanInline(text);

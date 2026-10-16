@@ -8,7 +8,19 @@ Developed in [rk68193-sys/-](https://github.com/rk68193-sys/-) (PRs #2–#4); th
 
 [Evening preview](docs/fieldnotes-evening.jpg) · [Phone preview](docs/fieldnotes-mobile.jpg)
 
-## New: math study notes and clear structure
+## New: drawings, graphs, more handwriting and any color
+
+![A drawing in the editor: a slope field and a solution curve](docs/drawing-editor.png)
+
+- **✎ Draw** (in the writing tools, or **+ Insert… → Drawing or math graph…**) opens the drawing editor: pen, line, arrow (hold Shift for straight or 45°), box, ellipse, text and an eraser, eight colors plus a color wheel for any color, stroke width, fill and dashes, on grid, dot or plain paper. Undo and redo keep 200 steps.
+- **Math graphs from a few lines of text**, drawn under your sketch and editable later. `y = sin(4x)`, `param cos(t), sin(t)`, `level x^2 + y^2 = 1, 4, 9` (level curves), `slope x - y` (a slope field for dy/dx), `field -y, x` (a vector field), `vector`, `point`, `segment`, `polygon … | fill`, `text`, and in `3d` mode `surface z = x^2 + y^2 | levels 1, 2 | floor`, `curve3`, `point3`, `vector3`, `polygon3`. `equal` keeps circles round. Options after `|`: colors, `dashed`, `dotted`, `thick`, `thin`, `label …`. Expressions accept `2x`, `x y`, `e^(−x²)`, `sin^2 x`, `π`. They are read by a small parser that only computes numbers, so nothing typed into a graph can run as code. A list of examples is in the editor.
+- **Pictures**: **+ Insert… → Picture from a file** puts a photo (of a board, a textbook figure) under the drawing so you can circle and label it. Photos are shrunk to 1200 pixels and kept as JPEG so the notebook stays small.
+- A drawing is saved in the notebook and appears in the notes as `![Caption](fig:…)`. It shows as a picture in **Cards**, as a thumbnail on the **map**, on the **handwritten pages** and in the PDF, and in **Practice** when it is part of an answer. Put the cursor on its line and press ✎ Draw, or press ✎ Edit under it in Cards, to change it. JSON backups carry drawings; a Markdown export keeps only the `![Caption](fig:…)` line.
+- **The three course notebooks now have 23 drawings**: the determinant as area, a shear keeping area, the disk-to-ellipse map, subspaces in R³, Nul A and Col A, the moving-average kernel; IVP versus BVP, the three cases of Ex 3, solutions as a shifted plane, the Ex 7–8 family, reduction of order, the cooling fin and its temperature profile; level curves as lifted traces, contour maps, the egg crate, two hills and two valleys, the two-path test, a tangent plane, the chain-rule tree, the directional derivative and the gradient field. A copy you never edited is updated in place; an edited copy is kept, and the version with drawings arrives beside it, marked "(new version)".
+- **17 handwriting styles** (11 new: Dancing Script, Gloria Hallelujah, Architects Daughter, Delius, Coming Soon, Nanum Pen Script, Covered By Your Grace, Just Another Hand, Reenie Beanie, Permanent Marker, Rock Salt), all bundled, for the Page view and the map lettering.
+- **Any color**: the swatch beside Ink, Accent ink and Highlighter opens a color wheel; picking a color there makes it a custom ink. Six more named inks (navy, brown, orange, pink, maroon, forest) and two highlighters (orange, purple).
+
+## Math study notes and clear structure
 
 ![The Linear Algebra notebook in the Cards view](docs/study-notes-cards.png)
 
@@ -87,7 +99,7 @@ Requires Node 18+ for tests only:
 npm test
 ```
 
-84 tests cover the original parser/layout/render behaviors plus example-boundary regressions, source locations, notebook validation, migration, save denial/quota, stale writes, source-grounded study cards, recall sessions, and the beta additions: formulas, the Key/heading fixes, delete/undo/duplicate/search, shuffle and missed cards, Anki escaping, map text size, SVG text pinning, and handwritten page layout (margins, page breaks, accent ink across wrapped lines). tests/study.test.js covers labels and sub-sections, study blocks, theorem/definition/steps cards, math rendering (superscripts, subscripts, matrices, escaping), line types, one-level indenting, Tidy keeping the tree unchanged, the Jump to list, one-time delivery of the course notebooks, and the three notebooks themselves.
+97 tests cover the original parser/layout/render behaviors plus example-boundary regressions, source locations, notebook validation, migration, save denial/quota, stale writes, source-grounded study cards, recall sessions, and the beta additions: formulas, the Key/heading fixes, delete/undo/duplicate/search, shuffle and missed cards, Anki escaping, map text size, SVG text pinning, and handwritten page layout (margins, page breaks, accent ink across wrapped lines). tests/study.test.js covers labels and sub-sections, study blocks, theorem/definition/steps cards, math rendering (superscripts, subscripts, matrices, escaping), line types, one-level indenting, Tidy keeping the tree unchanged, the Jump to list, one-time delivery of the course notebooks, and the three notebooks themselves. tests/figures.test.js covers the expression reader and graph language, level curves, escaping and stored-figure cleanup, the eraser, figures in notes, cards, the map and handwritten pages, and delivering the notebooks with drawings.
 
 ## Privacy and limits
 
@@ -102,13 +114,15 @@ The existing docs/screenshot-*.png images in the original PR depict the earlier 
 - js/parser.js — notes structure, kinds (labels, study blocks, worked examples), and source lines
 - js/structure.js — line types, one-level indenting, Tidy and the section list for the editor (pure, tested)
 - js/mathtext.js — superscripts, subscripts and matrices for cards, the map and the handwriting (pure, tested)
-- js/course-notes.js — the course notebooks that ship with the site
+- js/figure.js — drawings and math graphs as SVG: expression reader, graph language, level curves, 3D view (pure, tested)
+- js/draw.js — the drawing editor
+- js/course-notes.js — the course notebooks (and their drawings) that ship with the site
 - js/layout.js — map geometry and reading-card grouping
 - js/render.js — escaped SVG/HTML and canvas exports
 - js/notebooks.js — validated persistence, notebook desk actions, recall model and Anki export, shared with Node
 - js/handpage.js — notes → handwritten lines → pages (pure, tested)
 - js/hand.js, js/symbols.js — drawing handwriting, paper and hand-drawn symbols on a canvas
-- fonts/ — six handwriting fonts (SIL Open Font License / Apache 2.0, licences alongside)
+- fonts/ — seventeen handwriting fonts (SIL Open Font License / Apache 2.0, licences alongside)
 - vendor/ — jsPDF 2.5.1 (MIT) for the PDF download
 - js/app.js — editor, notebook/file actions, views, and camera interactions
 - css/styles.css — responsive paper-and-ink design and print styles

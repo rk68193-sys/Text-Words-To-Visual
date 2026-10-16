@@ -59,6 +59,9 @@
     autoFold: true, // a notebook just opened: fold a big one down to its sections
   };
 
+  const HEX = /^#[0-9a-f]{6}$/i;
+  const colorOf = (table, id) => (table[id] ? table[id].color : HEX.test(id) ? id : null);
+
   // Reader preferences, kept together in one browser key.
   const DEFAULT_SETTINGS = {
     theme: 'light', lettering: 'print', textSize: 100, shuffle: false, arrows: true,
@@ -72,9 +75,10 @@
     const hw = merged.hw;
     if (!HW.FONTS[hw.font]) hw.font = DEFAULT_SETTINGS.hw.font;
     if (!HW.PENS[hw.pen]) hw.pen = DEFAULT_SETTINGS.hw.pen;
-    if (!HW.INKS[hw.ink]) hw.ink = DEFAULT_SETTINGS.hw.ink;
-    if (hw.accent !== 'same' && !HW.INKS[hw.accent]) hw.accent = DEFAULT_SETTINGS.hw.accent;
-    if (!HW.HIGHLIGHTERS[hw.highlight]) hw.highlight = DEFAULT_SETTINGS.hw.highlight;
+    // A color is one of the named inks or any #rrggbb picked on the color wheel.
+    if (!HW.INKS[hw.ink] && !HEX.test(hw.ink)) hw.ink = DEFAULT_SETTINGS.hw.ink;
+    if (hw.accent !== 'same' && !HW.INKS[hw.accent] && !HEX.test(hw.accent)) hw.accent = DEFAULT_SETTINGS.hw.accent;
+    if (!HW.HIGHLIGHTERS[hw.highlight] && !HEX.test(hw.highlight)) hw.highlight = DEFAULT_SETTINGS.hw.highlight;
     if (!VN.PAPERS[hw.paper]) hw.paper = DEFAULT_SETTINGS.hw.paper;
     if (!VN.PAGE_SIZES[hw.pageSize]) hw.pageSize = DEFAULT_SETTINGS.hw.pageSize;
     hw.size = Math.min(34, Math.max(16, Number(hw.size) || 22));
@@ -100,6 +104,41 @@
   let practiceInbox = [];
   let selectedKey = null;
   const activeDoc = () => library.documents.find(d => d.id === library.activeId);
+
+  // ---------- Drawings, kept with the notebooks in library.figures ----------
+  const figures = () => library.figures || (library.figures = {});
+  const srcCache = new WeakMap();
+  function figureSrc(id) {
+    const fig = figures()[id];
+    if (!fig) return null;
+    let url = srcCache.get(fig);
+    if (!url) { url = VN.figureDataURL(fig); srcCache.set(fig, url); }
+    return url;
+  }
+  const figureSize = (id) => { const fig = figures()[id]; return fig ? { w: fig.w, h: fig.h } : null; };
+  const imageCache = new WeakMap();
+  function figureImage(id) {
+    const fig = figures()[id];
+    if (!fig) return null;
+    let img = imageCache.get(fig);
+    if (!img) { img = new Image(); img.src = figureSrc(id); imageCache.set(fig, img); }
+    return img;
+  }
+  const figuresIn = (text) => [...String(text).matchAll(/\]\(fig:([\w-]{1,64})\)/g)].map(m => m[1]);
+  // Canvas drawing (pages, PNG) needs the pictures loaded first.
+  function preloadFigures(ids) {
+    return Promise.all(ids.map(id => {
+      const img = figureImage(id);
+      if (!img || (img.complete && img.naturalWidth)) return null;
+      return new Promise(resolve => { img.addEventListener('load', resolve, { once: true }); img.addEventListener('error', resolve, { once: true }); });
+    }));
+  }
+  function mergeFigures(more) {
+    for (const [id, fig] of Object.entries(more || {})) {
+      const clean = VN.cleanFigure(fig);
+      if (clean && !figures()[id]) figures()[id] = clean;
+    }
+  }
 
   function storageWarning(message) {
     $('storage-message').textContent = message;
@@ -320,8 +359,8 @@
     const oneSide = oneSideNow();
     state.lastOneSide = oneSide;
     el.oneSide.setAttribute('aria-pressed', String(oneSide));
-    state.layout = VN.layoutMindMap(mapTree(), measure, { collapsed: state.collapsed, oneSide, textScale: settings.textSize / 100 });
-    el.camera.innerHTML = VN.mindMapMarkup(state.layout, theme, fonts, true);
+    state.layout = VN.layoutMindMap(mapTree(), measure, { collapsed: state.collapsed, oneSide, textScale: settings.textSize / 100, figureSize });
+    el.camera.innerHTML = VN.mindMapMarkup(state.layout, theme, fonts, true, figureSrc);
     el.unfold.disabled = state.collapsed.size === 0;
     $('map-tip').textContent = state.collapsed.size ? 'Folded branches show +ideas inside. Select one, then Unfold branch, or press Unfold for all.' : 'Select an idea to find its words. Drag to wander.';
     if (state.userMoved) applyCamera();
@@ -358,7 +397,7 @@
   }
 
   function renderCards() {
-    el.cardsView.innerHTML = VN.cardsHTML(state.tree, VN.toCards(state.tree));
+    el.cardsView.innerHTML = VN.cardsHTML(state.tree, VN.toCards(state.tree), figureSrc);
   }
 
   let pending = 0;
@@ -500,6 +539,7 @@
     el.selectedText.textContent = box.node.text;
     el.foldSelected.hidden = !box.collapsible;
     $('focus-selected').hidden = box.depth === 0 || !box.node.children.length;
+    $('edit-figure').hidden = box.node.kind !== 'figure';
     el.foldSelected.textContent = box.hidden ? 'Unfold branch' : 'Fold branch';
     el.camera.querySelectorAll('[data-key]').forEach(g => {
       g.classList.toggle('is-selected', g.dataset.key === selectedKey);
@@ -520,6 +560,10 @@
     if (box) jumpToSource(box.node.sourceLine);
   });
   $('focus-selected').addEventListener('click', () => { if (selectedKey) setFocus(selectedKey); });
+  $('edit-figure').addEventListener('click', () => {
+    const box = state.layout.boxes.find(b => b.key === selectedKey);
+    if (box && box.node.kind === 'figure') editFigure(box.node.figure);
+  });
   $('leave-focus').addEventListener('click', () => setFocus(null));
   el.foldSelected.addEventListener('click', () => {
     if (selectedKey) toggleBranch(selectedKey);
@@ -531,6 +575,8 @@
     el.map.focus();
   });
   el.cardsView.addEventListener('click', e => {
+    const edit = e.target.closest('[data-figure-edit]');
+    if (edit) { editFigure(edit.dataset.figureEdit); return; }
     const button = e.target.closest('[data-source-line]');
     if (button) jumpToSource(button.dataset.sourceLine);
   });
@@ -615,13 +661,14 @@
   }
 
   el.saveSvg.addEventListener('click', () => {
-    const svg = VN.mindMapSVGFile(freshExportLayout(), readTheme(), fonts);
+    const svg = VN.mindMapSVGFile(freshExportLayout(), readTheme(), fonts, 40, figureSrc);
     download(new Blob([svg], { type: 'image/svg+xml' }), fileName('svg'));
   });
 
-  el.savePng.addEventListener('click', () => {
+  el.savePng.addEventListener('click', async () => {
+    await preloadFigures(figuresIn(el.notes.value));
     let canvas;
-    try { canvas = VN.mindMapCanvas(freshExportLayout(), readTheme(), fonts); }
+    try { canvas = VN.mindMapCanvas(freshExportLayout(), readTheme(), fonts, { figureImage }); }
     catch (e) { showToast('This map could not be saved as a PNG. Try SVG instead.'); return; }
     canvas.toBlob((blob) => {
       if (blob) download(blob, fileName('png'));
@@ -637,6 +684,7 @@
       collapsed: state.collapsed,
       oneSide: state.oneSide ?? state.lastOneSide ?? window.innerWidth < 900,
       textScale: settings.textSize / 100,
+      figureSize,
     });
   }
   function noteSlug() {
@@ -663,6 +711,7 @@
       if (/\.json$/i.test(file.name)) {
         const imported = JSON.parse(text);
         if (!VN.validLibrary(imported)) throw new Error('This is not a Fieldnotes notebook backup.');
+        mergeFigures(imported.figures);
         addNotebooks(imported.documents.map(d => d.text), imported.documents.findIndex(d => d.id === imported.activeId));
         showToast('Imported notebooks were added to your desk.');
       } else if (/\.(md|txt)$/i.test(file.name)) {
@@ -680,6 +729,14 @@
     const esc = VN.esc;
     return '<section class="inbox" aria-label="Questions without answers"><h3>Questions still waiting for an answer</h3><p class="context">Indent an answer under each one and it joins your practice set.</p><ul>' +
       practiceInbox.map(q => '<li><span>' + VN.mathHTML(q.text) + '</span><button type="button" class="btn quiet" data-practice="source" data-line="' + q.sourceLine + '">Answer it ↗</button></li>').join('') + '</ul></section>';
+  }
+  // An answer can hold a drawing line; it is shown as the picture.
+  function richHTML(text) {
+    return String(text).split('\n').map(line => {
+      const m = VN.FIGURE_LINE.exec(line.trim().replace(/^(?:[-*+•]|\d{1,3}[.)])\s+/, ''));
+      const src = m && figureSrc(m[2]);
+      return src ? `<img class="practice-fig" src="${VN.esc(src)}" alt="${VN.esc(m[1])}">` : VN.mathHTML(line);
+    }).join('\n');
   }
   function renderPractice() {
     const esc = VN.esc;
@@ -703,7 +760,7 @@
       '<div class="practice-heading"><span>' + practice.queue.length + ' left · ' + practice.remembered + ' remembered</span><div class="practice-tools"><button class="btn quiet" type="button" data-practice="shuffle">' + (settings.shuffle ? 'In order' : 'Shuffle') + '</button><button class="btn quiet" type="button" data-practice="restart">Start over</button></div></div>' +
       '<article class="practice-sheet"><span class="eyebrow">' + esc(card.kind) + '</span><p class="context">' + math(card.branch) + '</p><h2>' + math(card.prompt) + '</h2>' +
       (card.context ? '<p class="context">So far: ' + math(card.context) + '</p>' : '') +
-      (practice.revealed ? '<div class="recall-answer" role="status">' + math(card.answer) + '</div><div class="practice-actions"><button class="btn" type="button" data-practice="again">Need another look</button><button class="btn primary" type="button" data-practice="known">I remembered</button></div><p class="practice-keys"><kbd>1</kbd> need another look · <kbd>2</kbd> I remembered</p>' :
+      (practice.revealed ? '<div class="recall-answer" role="status">' + richHTML(card.answer) + '</div><div class="practice-actions"><button class="btn" type="button" data-practice="again">Need another look</button><button class="btn primary" type="button" data-practice="known">I remembered</button></div><p class="practice-keys"><kbd>1</kbd> need another look · <kbd>2</kbd> I remembered</p>' :
         '<p class="context">Take a moment. Say it, sketch it, or write it from memory.</p><div class="practice-actions"><button class="btn primary" type="button" data-practice="reveal">Reveal answer</button></div><p class="practice-keys"><kbd>Space</kbd> reveals the answer</p>') +
       '</article><p class="practice-note">Answer from your notes · <button type="button" class="btn quiet" data-practice="source">Edit source ↗</button></p>' + inboxHTML();
   }
@@ -915,6 +972,7 @@
     const idea = !parts.heading && type !== 'label' ? VN.describe(parts.content) : null;
     if (idea && idea.kind === 'callout') classes.push(`g-callout g-${idea.callout}`);
     if (idea && idea.kind === 'example' && idea.label) classes.push('g-example');
+    if (idea && idea.kind === 'figure') classes.push('g-figure');
     // Each level of indentation gets its own rail, so you can see what sits under what.
     let rails = '';
     let i = 0;
@@ -976,6 +1034,7 @@
     const what = $('insert-kind').value;
     $('insert-kind').value = '';
     if (!what) return;
+    if (what === '__draw' || what === '__picture') { drawAtCaret({ pickPhoto: what === '__picture' }); return; }
     el.notes.focus();
     if (/: $/.test(what)) {
       // A study block goes at the start of the line, after any bullet or number.
@@ -1027,6 +1086,7 @@
     const example = value.startsWith('course:') ? (VN.COURSE_NOTES || []).find(b => 'course:' + b.id === value) : VN.EXAMPLES[value];
     el.examples.value = '';
     if (!example) return;
+    mergeFigures(example.figures);
     addNotebooks([example.text]);
     showToast(`Opened “${example.label}” as a new notebook.`);
   });
@@ -1038,11 +1098,18 @@
     try { delivered = JSON.parse(load(KEYS.delivered, '[]')) || []; } catch (e) { delivered = []; }
     const result = VN.deliverNotebooks(library, VN.COURSE_NOTES, delivered);
     save(KEYS.delivered, JSON.stringify(result.delivered));
-    if (!result.added.length) return;
+    if (!result.added.length && !result.updated.length) return;
     library.documents = result.library.documents;
     library.activeId = result.library.activeId;
-    const names = result.added.map(d => VN.titleOf(d).replace(/\s*·.*$/, ''));
-    setTimeout(() => showToast(`Added ${result.added.length === 1 ? 'a notebook' : result.added.length + ' notebooks'} from your Oct 16 notes: ${names.join(', ')}. They are on your desk above.`), 400);
+    library.figures = result.library.figures;
+    const names = (list) => list.map(d => VN.titleOf(d).replace(/\s*·.*$/, '')).join(', ');
+    const parts = [];
+    const fresh = result.added.filter(d => !d.id.includes('@'));
+    const beside = result.added.filter(d => d.id.includes('@'));
+    if (fresh.length) parts.push(`Added ${fresh.length === 1 ? 'a notebook' : fresh.length + ' notebooks'}: ${names(fresh)}.`);
+    if (beside.length) parts.push(`You had edited ${names(beside)}, so the version with drawings is beside your copy, marked "(new version)".`);
+    if (result.updated.length) parts.push(`Updated with drawings: ${names(result.updated)}.`);
+    setTimeout(() => showToast(parts.join(' ') + ' They are on your desk above.'), 400);
   }
 
   // ---------- Page view: the notebook in handwriting, and the PDF ----------
@@ -1056,30 +1123,31 @@
   }
   function pageSettings(scale) {
     const hw = settings.hw;
-    const ink = HW.INKS[hw.ink].color;
+    const ink = colorOf(HW.INKS, hw.ink);
     return {
       paper: hw.paper,
       metrics: VN.paperMetrics(hw.paper, hw.pageSize, hw.size),
       font: HW.FONTS[hw.font],
       pen: HW.PENS[hw.pen],
       ink,
-      accent: hw.accent === 'same' ? ink : HW.INKS[hw.accent].color,
-      highlight: HW.HIGHLIGHTERS[hw.highlight].color,
+      accent: hw.accent === 'same' ? ink : colorOf(HW.INKS, hw.accent),
+      highlight: colorOf(HW.HIGHLIGHTERS, hw.highlight),
       messiness: hw.messiness / 100,
       seed: hw.seed,
       scale,
+      figureImage,
     };
   }
   function layoutHandPages() {
     const hw = settings.hw;
-    return VN.layoutPages(el.notes.value, VN.paperMetrics(hw.paper, hw.pageSize, hw.size), hw.size, advanceFor(hw.font));
+    return VN.layoutPages(el.notes.value, VN.paperMetrics(hw.paper, hw.pageSize, hw.size), hw.size, advanceFor(hw.font), figureSize);
   }
   let pageDraw = 0;
   function renderPages() {
     const family = HW.FONTS[settings.hw.font].family;
     const token = ++pageDraw;
     pageEl.status.textContent = 'Writing…';
-    loadFace(family).then(() => {
+    Promise.all([loadFace(family), preloadFigures(figuresIn(el.notes.value))]).then(() => {
       if (token !== pageDraw || state.view !== 'page') return;
       const pages = layoutHandPages();
       const s = pageSettings(Math.min(2, Math.max(1, (window.devicePixelRatio || 1) * 0.9)));
@@ -1104,6 +1172,7 @@
     select.replaceChildren();
     if (extra) select.add(new Option(extra[1], extra[0]));
     for (const [id, item] of Object.entries(items)) select.add(new Option(item.label, id));
+    if (HEX.test(value)) select.add(new Option('Custom ' + value.toLowerCase(), value));
     select.value = value;
   }
   const hwControls = {
@@ -1113,6 +1182,10 @@
   };
   function syncPageControls() {
     for (const [key, [select, items, extra]] of Object.entries(hwControls)) fillSelect(select, items, settings.hw[key], extra);
+    // The wheel beside a color list shows the color in use; picking on it makes a custom color.
+    const hw = settings.hw;
+    const shown = { ink: colorOf(HW.INKS, hw.ink), accent: hw.accent === 'same' ? colorOf(HW.INKS, hw.ink) : colorOf(HW.INKS, hw.accent), highlight: colorOf(HW.HIGHLIGHTERS, hw.highlight) || '#ffffff' };
+    for (const [key, color] of Object.entries(shown)) $(`hw-${key}-wheel`).value = color;
     $('hw-size').value = settings.hw.size; $('hw-size-out').textContent = settings.hw.size + ' px';
     $('hw-mess').value = settings.hw.messiness; $('hw-mess-out').textContent = settings.hw.messiness + '%';
   }
@@ -1125,6 +1198,12 @@
       // Chalkboard needs light chalk; going back to paper needs dark ink again.
       if (key === 'paper' && hw.paper === 'chalkboard' && !LIGHT_INKS.includes(hw.ink)) Object.assign(hw, { ink: 'white', accent: 'yellow', pen: 'chalk' });
       if (key === 'paper' && before === 'chalkboard' && hw.paper !== 'chalkboard' && LIGHT_INKS.includes(hw.ink)) Object.assign(hw, { ink: 'blue', accent: 'red', pen: 'ballpoint' });
+      saveSettings(); syncPageControls(); renderPages();
+    });
+  }
+  for (const key of ['ink', 'accent', 'highlight']) {
+    $(`hw-${key}-wheel`).addEventListener('change', () => {
+      settings.hw[key] = $(`hw-${key}-wheel`).value;
       saveSettings(); syncPageControls(); renderPages();
     });
   }
@@ -1162,6 +1241,7 @@
     try {
       const { jsPDF } = await whenPdfReady();
       await loadFace(HW.FONTS[settings.hw.font].family);
+      await preloadFigures(figuresIn(el.notes.value));
       const pages = layoutHandPages();
       const size = VN.PAGE_SIZES[settings.hw.pageSize].pt;
       const s = pageSettings(2.5);
@@ -1195,6 +1275,45 @@
     showToast(`Saved ${cards.length} cards. In Anki: File → Import.`);
   });
 
+  // ---------- Drawing ----------
+
+  const figureOnLine = (line) => VN.FIGURE_LINE.exec(String(line).trim().replace(/^(?:[-*+•]|\d{1,3}[.)])\s+/, ''));
+  // ✎ Draw: on a drawing's line it edits that drawing; anywhere else it makes a new one,
+  // put on its own line under the current line.
+  function drawAtCaret({ pickPhoto = false } = {}) {
+    const sel = selectedLines();
+    const line = sel.lines[sel.first];
+    const here = figureOnLine(line);
+    if (here && !pickPhoto) { editFigure(here[2]); return; }
+    VN.openDrawing(null, '', (fig, caption) => {
+      const id = 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      figures()[id] = fig;
+      const indent = /^[ \t]*/.exec(line)[0];
+      const end = offsetOfLine(sel.lines, sel.first) + line.length;
+      el.notes.focus();
+      el.notes.setSelectionRange(end, end);
+      insertText((line.trim() ? '\n' + indent : '') + `![${caption.replace(/[[\]]/g, '')}](fig:${id})`);
+      saveNotebook();
+      showToast('Drawing added. It shows in Cards, on the map and on the handwritten pages; put the cursor on its line and press ✎ Draw to change it.');
+    }, { pickPhoto });
+  }
+  function editFigure(id) {
+    const lines = el.notes.value.split('\n');
+    const at = lines.findIndex(l => { const m = figureOnLine(l); return m && m[2] === id; });
+    const caption = at >= 0 ? figureOnLine(lines[at])[1] : '';
+    VN.openDrawing(figures()[id] || VN.newFigure(), caption, (fig, newCaption) => {
+      figures()[id] = fig;
+      if (at >= 0 && newCaption !== caption) {
+        const sel = selectedLines();
+        const next = sel.lines.map(l => { const m = figureOnLine(l); return m && m[2] === id ? l.replace(/!\[[^\]]*\]/, `![${newCaption.replace(/[[\]]/g, '')}]`) : l; });
+        replaceLines(sel, 0, sel.lines.length - 1, next);
+      }
+      saveNotebook();
+      render();
+      showToast('Drawing saved.');
+    });
+  }
+
   // ---------- Writing tools ----------
 
   const LINE = /^(\s*)((?:[-*+•]|\d{1,3}[.)])\s+)?(\[[ xX]\]\s+)?(!\s*)?(.*)$/;
@@ -1205,6 +1324,7 @@
     numbered: () => applyLineType('numbered'),
     todo: () => transformLines(l => { const m = LINE.exec(l); return m[3] ? m[1] + (m[2] || '') + (m[4] || '') + m[5] : m[1] + (m[2] || '- ') + '[ ] ' + (m[4] || '') + m[5]; }),
     important: () => transformLines(l => { const m = LINE.exec(l); return m[1] + (m[2] || '') + (m[3] || '') + (m[4] ? '' : '! ') + m[5]; }),
+    draw: () => drawAtCaret(),
     tidy: () => {
       const tidy = VN.tidyNotes(el.notes.value);
       if (tidy === el.notes.value) { showToast('Already tidy: every level is two spaces and every bullet is "-".'); return; }

@@ -84,16 +84,58 @@
     return library.documents.filter(d => { const t = d.text.toLowerCase(); return words.every(w => t.includes(w)); });
   }
 
-  // Notebooks that ship with the site (course notes) join the desk once, as new notebooks.
-  // `delivered` remembers them, so one you delete stays deleted.
+  // A short fingerprint of a notebook's text, to tell whether it was edited.
+  function textHash(text) {
+    let h = 0x811c9dc5;
+    for (const ch of String(text)) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; }
+    return h.toString(16).padStart(8, '0');
+  }
+
+  /**
+   * deliverNotebooks(library, bundles, delivered) -> { library, added, updated, delivered }
+   *
+   * Notebooks that ship with the site (course notes) join the desk once. `delivered`
+   * remembers them, so one you delete stays deleted. A newer version of a bundle
+   * (bundle.version) replaces your copy only if you never edited it (its text matches one
+   * of bundle.replaces); an edited copy is kept and the new version arrives beside it.
+   * Drawings the bundles use are added to library.figures.
+   */
   function deliverNotebooks(library, bundles, delivered) {
     const seen = new Set(delivered || []);
-    const have = new Set(library.documents.map(d => d.id));
-    const added = (bundles || []).filter(b => !seen.has(b.id) && !have.has(b.id))
-      .map(b => ({ id: b.id, text: String(b.text), updatedAt: b.date || new Date().toISOString() }));
-    const ids = [...seen, ...added.map(d => d.id)];
-    if (!added.length) return { library, added, delivered: ids };
-    return { library: { version: 1, activeId: added[0].id, documents: library.documents.concat(added) }, added, delivered: ids };
+    const documents = library.documents.slice();
+    const figures = Object.assign({}, library.figures);
+    const added = [];
+    const updated = [];
+    for (const b of bundles || []) {
+      const tag = b.id + '@' + (b.version || 1);
+      if (seen.has(tag)) continue;
+      const index = documents.findIndex(d => d.id === b.id);
+      const doc = { id: b.id, text: String(b.text), updatedAt: b.date || new Date().toISOString() };
+      if (index >= 0) {
+        const mine = documents[index];
+        if (mine.text !== doc.text) {
+          if ((b.replaces || []).includes(textHash(mine.text))) { documents[index] = Object.assign({}, mine, { text: doc.text, updatedAt: doc.updatedAt }); updated.push(documents[index]); }
+          else if (!documents.some(d => d.id === tag)) {
+            const copy = { id: tag, text: doc.text.replace(/^(#*\s*)(.*)/, '$1$2 (new version)'), updatedAt: doc.updatedAt };
+            documents.splice(index + 1, 0, copy);
+            added.push(copy);
+          }
+        }
+      } else if (!seen.has(b.id)) {
+        documents.push(doc);
+        added.push(doc);
+      } else {
+        seen.add(tag);
+        continue; // you deleted this notebook earlier
+      }
+      for (const [id, fig] of Object.entries(b.figures || {})) if (!figures[id]) figures[id] = fig;
+      seen.add(b.id);
+      seen.add(tag);
+    }
+    const ids = [...seen];
+    if (!added.length && !updated.length) return { library, added, updated, delivered: ids };
+    const activeId = (added[0] || updated[0]).id;
+    return { library: { version: 1, activeId, documents, figures }, added, updated, delivered: ids };
   }
 
   // "Big picture: …" or "Problem tactic: …" name a note, not a concept, so they are recalled, not defined.
@@ -193,5 +235,5 @@
     }
     return rows.join('\n') + '\n';
   }
-  return { LIBRARY_KEY, makeId, notebook, titleOf, validLibrary, readLibrary, writeLibrary, removeNotebook, restoreNotebook, duplicateNotebook, searchNotebooks, deliverNotebooks, studyCards, startPractice, ratePractice, cardsTSV };
+  return { LIBRARY_KEY, makeId, notebook, titleOf, validLibrary, readLibrary, writeLibrary, removeNotebook, restoreNotebook, duplicateNotebook, searchNotebooks, deliverNotebooks, textHash, studyCards, startPractice, ratePractice, cardsTSV };
 });

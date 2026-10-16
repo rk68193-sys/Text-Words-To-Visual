@@ -91,6 +91,13 @@
       if (!indents.length || indents[indents.length - 1] < indent) indents.push(indent);
       const level = Math.min(6, indents.length - 1);
 
+      // A drawing sits on the page with its caption written under it.
+      const fig = /^!\[([^\]]*)\]\(fig:([\w-]{1,64})\)\s*$/.exec(content.trim());
+      if (fig) {
+        entries.push({ heading: 0, level, marker: null, figure: fig[2], text: hand(fig[1].trim() || 'Drawing'), accent: Infinity, highlight: false, boxed: false });
+        return;
+      }
+
       // A label (**INTUITION**) is written in the accent ink and underlined, like a small heading.
       if (!bullet && parser.isLabel(body)) {
         const text = hand(content.replace(/\*\*|__/g, '').replace(/\s*:\s*$/, '').trim());
@@ -169,14 +176,14 @@
    * Writing sits on the printed lines of ruled paper; text too big for one line
    * takes up more than one.
    */
-  function layoutPages(text, m, size, advance) {
+  function layoutPages(text, m, size, advance, figureSize = null) {
     const pages = [{ lines: [] }];
     let row = 0; // which ruled line we're on, counting from the top of the page
     const step = size * 1.2; // indentation per level
 
     const rulesFor = (lineSize) => Math.max(1, Math.ceil((lineSize * 1.1) / m.rule));
     function place(line) {
-      const need = rulesFor(line.size);
+      const need = line.rows || rulesFor(line.size);
       let y = m.firstRule + (row + need - 1) * m.rule;
       if (y > m.lastRule && (row > 0 || pages[pages.length - 1].lines.length)) {
         pages.push({ lines: [] });
@@ -184,6 +191,8 @@
         y = m.firstRule + (need - 1) * m.rule;
       }
       line.y = y - Math.min(m.rule * 0.2, 6);
+      // A drawing fills the ruled lines it takes, from just under the line above.
+      if (line.figure) line.figure.y = y - need * m.rule + 6;
       pages[pages.length - 1].lines.push(line);
       row += need;
     }
@@ -196,6 +205,20 @@
       }
       const prev = entries[i - 1];
       if (entry.heading >= 2 && prev && !prev.blank && row > 0) row += 1;
+      if (entry.figure) {
+        const dims = figureSize && figureSize(entry.figure);
+        const x = m.left + entry.level * step;
+        if (dims) {
+          let w = Math.min(m.right - x, 460);
+          let h = (w * dims.h) / dims.w;
+          const maxH = Math.min(360, m.lastRule - m.firstRule - m.rule * 2);
+          if (h > maxH) { w = (w * maxH) / h; h = maxH; }
+          place({ text: '', x, width: 0, size, rows: Math.ceil((h + 12) / m.rule), heading: 0, marker: null, accent: 0, highlight: false, boxed: false, figure: { id: entry.figure, x, w, h } });
+        }
+        const caption = Math.round(size * 0.85);
+        wrapLine(entry.text, m.right - x, caption, advance).forEach((piece) => place({ text: piece, x, width: [...piece].reduce((t, ch) => t + advance(ch, caption), 0), size: caption, heading: 0, marker: null, accent: piece.length, highlight: false, boxed: false }));
+        return;
+      }
       const lineSize = entry.heading ? Math.round(size * HEADING_SCALE[entry.heading]) : size;
       const markerW = entry.marker ? Math.max(step, [...entry.marker].reduce((s, ch) => s + advance(ch, size), 0) + size * 0.45) : 0;
       const markerX = m.left + entry.level * step;
