@@ -55,25 +55,43 @@
     return lines.length ? lines : [''];
   }
 
+  // mathtext.js is loaded first in the browser; Node gets it with require.
+  const mathPlain = (text) => (typeof VisualNotes !== 'undefined' && VisualNotes.mathPlain ? VisualNotes : require('./mathtext.js')).mathPlain(text);
+  const CALLOUT_MARKS = { warning: '⚠ ', tip: '✦ ', note: '✎ ', proof: '∴ ' };
+  const DETAIL_LIMIT = 220; // long theorem statements are shortened on the map; Cards show them whole
+
   function labelFor(node) {
     let prefix = '';
     if (node.kind === 'todo') prefix = node.done ? '☑ ' : '☐ ';
-    else if (node.kind === 'example') prefix = 'e.g. ';
+    else if (node.kind === 'example') prefix = node.label ? `${node.label}: ` : 'e.g. ';
+    else if (node.kind === 'callout') prefix = CALLOUT_MARKS[node.callout] || '';
+    if (node.numbered) prefix = `${node.numbered}. ${prefix}`;
     if (node.important) prefix = `★ ${prefix}`;
     if (node.kind === 'flow') return prefix + node.steps.join(' → ');
     if (node.kind === 'question' && !/\?\s*$/.test(node.text)) return `${prefix}${node.text}?`;
     if (node.kind === 'definition') return prefix + node.term;
+    if (node.kind === 'callout') return prefix + node.label;
     return prefix + node.text;
+  }
+
+  // The smaller second part of a box: a definition's meaning or a callout's statement.
+  function detailFor(node) {
+    const detail = node.kind === 'definition' ? node.detail : node.kind === 'callout' ? node.body : '';
+    if (!detail || detail.length <= DETAIL_LIMIT) return detail;
+    const cut = detail.lastIndexOf(' ', DETAIL_LIMIT);
+    return detail.slice(0, cut > 120 ? cut : DETAIL_LIMIT) + ' …';
   }
 
   // Lines of text inside one box, with their fonts and baselines.
   function measureBox(node, depth, measure, scale = 1) {
     const level = levelFor(depth, scale);
-    const head = { family: level.family, size: level.size, weight: depth >= 2 && node.kind === 'definition' ? 700 : 400 };
-    const rows = wrap(labelFor(node), head, level.maxW, measure).map((text) => ({ text, font: head }));
-    if (node.kind === 'definition') {
+    const bold = depth >= 2 && ['definition', 'callout', 'label'].includes(node.kind);
+    const head = { family: level.family, size: level.size, weight: bold ? 700 : 400 };
+    const rows = wrap(mathPlain(labelFor(node)), head, level.maxW, measure).map((text) => ({ text, font: head }));
+    const detail = detailFor(node);
+    if (detail) {
       const detailFont = depth >= 2 ? { family: 'body', size: level.size - 1, weight: 400 } : { family: DETAIL.family, size: Math.round(DETAIL.size * scale * 10) / 10, weight: 400 };
-      for (const text of wrap(node.detail, detailFont, level.maxW, measure)) rows.push({ text, font: detailFont, detail: true });
+      for (const text of wrap(mathPlain(detail), detailFont, level.maxW, measure)) rows.push({ text, font: detailFont, detail: true });
     }
     let y = level.padY;
     let width = 0;

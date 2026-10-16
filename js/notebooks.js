@@ -84,17 +84,65 @@
     return library.documents.filter(d => { const t = d.text.toLowerCase(); return words.every(w => t.includes(w)); });
   }
 
+  // Notebooks that ship with the site (course notes) join the desk once, as new notebooks.
+  // `delivered` remembers them, so one you delete stays deleted.
+  function deliverNotebooks(library, bundles, delivered) {
+    const seen = new Set(delivered || []);
+    const have = new Set(library.documents.map(d => d.id));
+    const added = (bundles || []).filter(b => !seen.has(b.id) && !have.has(b.id))
+      .map(b => ({ id: b.id, text: String(b.text), updatedAt: b.date || new Date().toISOString() }));
+    const ids = [...seen, ...added.map(d => d.id)];
+    if (!added.length) return { library, added, delivered: ids };
+    return { library: { version: 1, activeId: added[0].id, documents: library.documents.concat(added) }, added, delivered: ids };
+  }
+
+  // "Big picture: …" or "Problem tactic: …" name a note, not a concept, so they are recalled, not defined.
+  const NOTE_TAG = /\b(?:big picture|picture|tactics?|tricks?|tips?|ideas?|notes?|strateg(?:y|ies)|cases?|costs?|sanity|geometry|motivation|context|consequences?|examples?|themes?|recipe|setup|insights?|rules?|takeaways?|failures?|contrast|remarks?|assumptions?|summary|checks?|vocabulary|real-world|related|facts?|preview|practice|exercises?|illustration|alternative|general|standing|classification|lessons?|disproving|traps?|intro|uses?|applications?|physical|meaning|reading|view|forms?|tests?|classic|next|cross-course|geometric|why|how|is|are|was|were|means|matters|works|arise|gives|makes|has|have|does|can|needs?)\b/i;
+  function definitionPrompt(node, branch) {
+    if (/^(where|when|why|how)$/i.test(node.term)) return { prompt: 'For “' + branch + '”, ' + node.term.toLowerCase() + '?', kind: 'Definition' };
+    if (/\?["”]?$/.test(node.term)) return { prompt: node.term.replace(/^["“]|["”]$/g, ''), kind: 'Your question' };
+    if (NOTE_TAG.test(node.term)) return { prompt: 'Recall: ' + node.term, kind: 'Recall' };
+    return { prompt: 'What is ' + node.term + '?', kind: 'Definition' };
+  }
+  // "State Theorem 4.1.1 (Existence…)." / "Define Wronskian (Definition 4.1.2)." / "Define Nul A."
+  function calloutPrompt(node) {
+    if (node.callout === 'theorem') return 'State ' + node.label + '.';
+    const m = /^(?:definition|defn|def)\.?\s*([\d.]*)\s*(.*)$/i.exec(node.label);
+    let name = m ? m[2].trim() : '';
+    const inParens = /^\((.*)\)$/.exec(name);
+    if (inParens) name = inParens[1].trim();
+    if (!name) { const lhs = /^(.{1,40}?)\s*(?:=|:)\s/.exec(node.body || ''); name = lhs ? lhs[1] : ''; }
+    if (name) return 'Define ' + name + (m && m[1] ? ' (Definition ' + m[1] + ')' : '') + '.';
+    return /^(?:definition|defn|def)\.?$/i.test(node.label) ? 'State the definition.' : 'State ' + node.label + '.';
+  }
+  // Answers are copied exactly as written, every line under the question.
+  const writtenUnder = (node) => { const out = []; const collect = n => { out.push(n.raw || n.text); n.children.forEach(collect); }; node.children.forEach(collect); return out; };
+
   function studyCards(tree) {
     const cards = [];
     const unansweredList = [];
     let unanswered = 0;
     function visit(node, branch) {
+      // Numbered lines under one idea, label or heading are a procedure: practise listing them in order.
+      const steps = node.children.filter(c => c.numbered);
+      if (steps.length >= 2) {
+        cards.push({ id: node.key + ':steps', prompt: 'List the steps: ' + node.text, answer: steps.map(c => c.numbered + '. ' + (c.raw || c.text)).join('\n'), kind: 'Steps', branch, sourceLine: node.sourceLine });
+      }
+      // A heading or a label names a section, and a numbered step is practised with its list.
+      if (node.heading || node.kind === 'label' || node.numbered) {
+        node.children.forEach(child => visit(child, branch || node.text));
+        return;
+      }
       if (node.kind === 'definition') {
-        cards.push({ id: node.key + ':definition', prompt: /^(where|when|why|how)$/i.test(node.term) ? 'For “' + branch + '”, ' + node.term.toLowerCase() + '?' : 'What is ' + node.term + '?', answer: node.detail, kind: 'Definition', branch, sourceLine: node.sourceLine });
+        const { prompt, kind } = definitionPrompt(node, branch);
+        cards.push({ id: node.key + ':definition', prompt, answer: node.detail, kind, branch, sourceLine: node.sourceLine });
+      } else if (node.kind === 'callout' && (node.callout === 'theorem' || node.callout === 'definition')) {
+        const answer = [node.body, ...writtenUnder(node)].filter(Boolean).join('\n');
+        if (answer) cards.push({ id: node.key + ':callout', prompt: calloutPrompt(node), answer, kind: node.callout === 'theorem' ? 'Theorem' : 'Definition', branch, sourceLine: node.sourceLine });
       } else if (node.kind === 'question') {
         if (node.children.length) {
           const answers = [];
-          const collect = n => { answers.push(n.text); n.children.forEach(collect); };
+          const collect = n => { answers.push(n.raw || n.text); n.children.forEach(collect); };
           node.children.forEach(collect);
           cards.push({ id: node.key + ':question', prompt: node.text, answer: answers.join('\n'), kind: 'Your question', branch, sourceLine: node.sourceLine });
         } else {
@@ -110,6 +158,8 @@
           kind: 'Sequence', branch, sourceLine: node.sourceLine
         }));
       }
+      // The lines under an answered question are its answer, not more cards.
+      if (node.kind === 'question' && node.children.length) return;
       node.children.forEach(child => visit(child, branch || node.text));
     }
     tree.root.children.forEach(node => visit(node, node.text));
@@ -143,5 +193,5 @@
     }
     return rows.join('\n') + '\n';
   }
-  return { LIBRARY_KEY, makeId, notebook, titleOf, validLibrary, readLibrary, writeLibrary, removeNotebook, restoreNotebook, duplicateNotebook, searchNotebooks, studyCards, startPractice, ratePractice, cardsTSV };
+  return { LIBRARY_KEY, makeId, notebook, titleOf, validLibrary, readLibrary, writeLibrary, removeNotebook, restoreNotebook, duplicateNotebook, searchNotebooks, deliverNotebooks, studyCards, startPractice, ratePractice, cardsTSV };
 });

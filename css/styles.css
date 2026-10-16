@@ -64,7 +64,27 @@ a { color: inherit; }
 .ink-mark { color: var(--b1); font: 35px var(--font-hand); transform: rotate(9deg); }
 .visual-head h1 { margin: 0; font: 28px/1.2 var(--font-hand); letter-spacing: -.7px; }
 .paper-wrap { border: 1px solid var(--rule); border-radius: 2px 8px 8px 2px; background: var(--sheet); box-shadow: 3px 4px 0 color-mix(in srgb,var(--rule) 45%,transparent); }
-#notes { width: 100%; min-height: 340px; height: max(365px,48vh); display: block; resize: vertical; padding: 22px 18px 22px 34px; border: 0; border-radius: inherit; color: var(--ink); background-color: transparent; font: 15px/var(--line) var(--font-body); tab-size: 2; background-image: linear-gradient(90deg,transparent 22px,var(--margin) 22px,var(--margin) 23px,transparent 23px),repeating-linear-gradient(to bottom,transparent 0,transparent calc(var(--line) - 1px),color-mix(in srgb,var(--rule) 65%,transparent) calc(var(--line) - 1px),var(--rule) var(--line)); background-position: 0 0,0 21px; background-attachment: local; }
+.paper-wrap { position: relative; }
+/* The guides sit behind the notes and line up with them letter for letter: same font, padding and wrapping. */
+#notes, .notes-guides { padding: 22px 18px 22px 34px; font: 15px/var(--line) var(--font-body); tab-size: 2; letter-spacing: normal; }
+.notes-guides { position: absolute; left: 0; top: 0; overflow: hidden; pointer-events: none; color: transparent; white-space: pre-wrap; overflow-wrap: break-word; }
+.notes-guides .g { min-height: var(--line); }
+.notes-guides .rail { box-shadow: inset 1.5px 0 0 color-mix(in srgb, var(--b2) 35%, transparent); }
+.notes-guides .mk { border-radius: 50%; background: color-mix(in srgb, var(--b2) 30%, transparent); }
+.notes-guides .mk-1 { background: color-mix(in srgb, var(--b3) 34%, transparent); }
+.notes-guides .mk-2 { background: color-mix(in srgb, var(--b4) 34%, transparent); }
+.notes-guides .mk-3 { background: color-mix(in srgb, var(--b5) 34%, transparent); }
+.notes-guides .g-numbered .mk { border-radius: 3px; }
+.notes-guides .g-h1, .notes-guides .g-h2 { background: color-mix(in srgb, var(--b2-soft) 85%, transparent); box-shadow: -10px 0 0 var(--b2); }
+.notes-guides .g-h1 { background: color-mix(in srgb, var(--accent) 16%, transparent); box-shadow: -10px 0 0 var(--accent); }
+.notes-guides .g-h3 { background: color-mix(in srgb, var(--b2-soft) 55%, transparent); box-shadow: -6px 0 0 var(--b2); }
+.notes-guides .g-h4 { box-shadow: -4px 0 0 color-mix(in srgb, var(--b2) 60%, transparent); }
+.notes-guides .g-label { background: color-mix(in srgb, var(--b6-soft) 80%, transparent); box-shadow: -6px 0 0 var(--b6); }
+.notes-guides .g-theorem, .notes-guides .g-definition { background: color-mix(in srgb, var(--b5-soft) 70%, transparent); }
+.notes-guides .g-warning { background: color-mix(in srgb, var(--b1-soft) 80%, transparent); }
+.notes-guides .g-tip, .notes-guides .g-note, .notes-guides .g-proof, .notes-guides .g-example { background: color-mix(in srgb, var(--b3-soft) 55%, transparent); }
+#notes { position: relative; z-index: 1;
+  width: 100%; min-height: 340px; height: max(365px,48vh); display: block; resize: vertical; border: 0; border-radius: inherit; color: var(--ink); background-color: transparent; background-image: linear-gradient(90deg,transparent 22px,var(--margin) 22px,var(--margin) 23px,transparent 23px),repeating-linear-gradient(to bottom,transparent 0,transparent calc(var(--line) - 1px),color-mix(in srgb,var(--rule) 65%,transparent) calc(var(--line) - 1px),var(--rule) var(--line)); background-position: 0 0,0 21px; background-attachment: local; }
 #notes::placeholder { color: var(--ink-soft); opacity: .8; }
 .notes-meta { display: flex; flex-wrap: wrap; gap: 5px 10px; justify-content: space-between; margin-top: 12px; font-size: 11px; color: var(--ink-soft); }
 .save-status { color: var(--accent); }
@@ -149,10 +169,13 @@ a { color: inherit; }
 .shelf-search { width: 170px; border: 1px solid var(--rule); background: var(--sheet); color: var(--ink); border-radius: 4px; padding: 7px 10px; font-size: 13px; }
 .notebook-list:empty::after { content: 'No notebook matches.'; font-size: 12px; color: var(--ink-soft); padding: 13px 4px; }
 .notebook-tab mark { background: var(--highlight); color: inherit; }
-.writing-tools { display: none; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
-.writing-tools button { flex: 1 0 auto; min-width: 40px; border: 1px solid var(--rule); background: var(--sheet); border-radius: 4px; padding: 6px 8px; font-size: 14px; color: var(--ink); }
+.writing-tools { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.tool-row { display: flex; gap: 4px; flex-wrap: wrap; }
+.writing-tools button { flex: 1 0 auto; min-width: 34px; border: 1px solid var(--rule); background: var(--sheet); border-radius: 4px; padding: 5px 7px; font-size: 13px; color: var(--ink); }
 .writing-tools button:active { background: var(--paper); }
-@media (max-width: 860px), (pointer: coarse) { .writing-tools { display: flex; } }
+.writing-tools select { flex: 1 1 100px; min-width: 0; padding: 5px 6px; font-size: 12px; }
+.writing-tools .tidy, #line-type + button, #line-type + button + button { flex: 0 0 auto; }
+#line-type { flex-basis: 170px; font-weight: 600; }
 .focus-bar { position: absolute; top: 26px; left: 16px; display: flex; gap: 10px; align-items: center; font-size: 12px; color: var(--ink-soft); z-index: 2; max-width: calc(100% - 32px); }
 .focus-bar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--sheet); padding: 2px 4px; }
 .item .formula, .formula { font-family: var(--font-mono); font-size: 12.5px; padding: 1px 7px; border: 1px solid var(--c, var(--rule)); border-radius: 3px; overflow-wrap: anywhere; }
@@ -196,7 +219,7 @@ a { color: inherit; }
 @media (max-width: 1180px) { .visual-head { flex-wrap: wrap; gap: 8px; min-height: 112px; } .view-switch { margin-bottom: 10px; } .pane-head { min-height: 112px; } .workspace { gap: 20px; padding-inline: 22px; } }
 @media (max-width: 860px) { .workspace { grid-template-columns: minmax(0,1fr); padding: 24px 20px; gap: 30px; } .topbar { padding: 18px 20px; } .notebook-bar { padding-inline: 20px; flex-wrap: wrap; gap: 6px; } .notebook-list { flex: 1 1 70%; } .shelf-label { display: none; } .pane-head { min-height: 72px; } #notes { height: 280px; min-height: 220px; } .visual-head { min-height: 105px; } .board { height: 620px; } .privacy-note { max-width: none; } .storage-banner { margin-inline: 20px; } }
 @media (max-width: 520px) { .topbar { align-items: flex-start; flex-wrap: wrap; gap: 18px; } .top-actions { width: 100%; } .top-actions > :last-child { margin-left: auto; } .brand { font-size: 27px; } .brand small { font-size: 10px; } .workspace { padding-inline: 14px; } .visual-head h1 { font-size: 27px; } .notebook-bar { padding: 4px 14px; } .notebook-tab { padding: 12px 8px; max-width: 190px; } .board { height: 590px; } .cards-view, .practice-view { padding: 20px; } .practice-sheet { padding: 22px; } .practice-sheet h2 { font-size: 25px; } .idea-inspector { flex-wrap: wrap; bottom: 108px; } .map-tools { justify-content: flex-start; } .map-tip { font-size: 10px; } .inspector-actions { flex-shrink: 1; } .notes-meta { font-size: 11px; } .source-link { min-width: 32px; } }
-@media (pointer: coarse) { button, select, summary { min-height: 44px; } #notes { font-size: 16px; } .source-link { min-width: 44px; } }
+@media (pointer: coarse) { button, select, summary { min-height: 44px; } #notes, .notes-guides { font-size: 16px; } .source-link { min-width: 44px; } }
 @media (prefers-reduced-motion: no-preference) { .btn,.tool,.view-switch button { transition: background-color 130ms, border-color 130ms; } }
 @media print {
   body { background: white; color: black; }
@@ -208,3 +231,28 @@ a { color: inherit; }
 }
 
 @media print { :root, :root[data-theme='dark'] { --ink:#202820; --ink-soft:#555; --paper:#fff; --sheet:#fff; --rule:#ccc; --highlight:#fff2b0; --b1-soft:#f3e2d8; --b2-soft:#e0e9f0; --b3-soft:#e6ecd9; --b4-soft:#f0e0e5; --b5-soft:#e9e4ef; --b6-soft:#deedeb; color-scheme:light; } }
+
+/* ---------- Study blocks, labels and math ---------- */
+.item.is-label > .line { padding-top: 10px; }
+.label-text { font: 600 11px/1.4 var(--font-body); letter-spacing: 1.1px; text-transform: uppercase; color: var(--c); background: var(--c-soft); padding: 2px 7px; border-radius: 3px; overflow-wrap: anywhere; }
+.items .is-label > ul { border-left-style: dotted; }
+.num { font: 600 12px var(--font-mono); color: var(--c); min-width: 1.6em; }
+.is-callout > .line { display: block; padding: 7px 10px; margin: 5px 0; border: 1px solid var(--rule); border-left: 4px solid var(--c); border-radius: 3px; background: color-mix(in srgb, var(--c-soft) 45%, var(--sheet)); }
+.is-callout > .line .words { display: block; margin-top: 2px; }
+.is-callout > .line .source-link { float: right; margin: -3px -6px 0 0; }
+.callout-tag { font: 600 12px/1.4 var(--font-body); color: var(--c); overflow-wrap: anywhere; }
+.callout-theorem > .line { border-left-width: 6px; }
+.callout-definition > .line { border-left-style: double; border-left-width: 6px; }
+.callout-proof > .line { background: transparent; border-style: dashed; font-style: italic; }
+.callout-proof > .line .words::after { content: ' ∎'; font-style: normal; color: var(--c); }
+.callout-warning > .line { border-color: var(--b1); background: var(--b1-soft); }
+.callout-warning .callout-tag { color: var(--b1); }
+.callout-tip > .line, .callout-note > .line { border-style: dotted; border-left-style: solid; }
+.is-example > .line .badge { font-style: normal; white-space: nowrap; }
+sup, sub { font-size: 72%; line-height: 0; }
+.matrix { display: inline-grid; grid-template-columns: repeat(var(--cols), auto); gap: 0 .7em; vertical-align: middle; padding: 1px 6px; margin: 2px 3px; font-size: 92%; line-height: 1.35; text-align: center; border-inline: 1.5px solid currentColor; border-radius: 5px; }
+.matrix.det { border-radius: 0; }
+.recall-answer .matrix, .practice-sheet h2 .matrix { font-size: 85%; }
+/* A mark before the words (a number, ?, e.g., ★, a box) keeps the words on its line. */
+.item .line > :is(.num, .badge, .star, .check) + .words { flex: 1 1 0; }
+.notes-guides .g-title { background: color-mix(in srgb, var(--accent) 16%, transparent); box-shadow: -10px 0 0 var(--accent); }

@@ -8,6 +8,22 @@ Developed in [rk68193-sys/-](https://github.com/rk68193-sys/-) (PRs #2–#4); th
 
 [Evening preview](docs/fieldnotes-evening.jpg) · [Phone preview](docs/fieldnotes-mobile.jpg)
 
+## New: math study notes and clear structure
+
+![The Linear Algebra notebook in the Cards view](docs/study-notes-cards.png)
+
+- **Three course notebooks from the October 16 notes.** *Linear Algebra · Oct 16* (Lay 3.1–3.3, 4.1–4.2), *Differential Equations · Oct 16* (Zill 4.1–4.2) and *Calculus III · Oct 16* (Stewart 14.1–14.6). Every section is split into INTUITION and EQUATIONS / PROBLEM-SOLVING parts and ends with a quick self-test. They join your desk on their own the first time you open the site; deleting one is remembered. A fresh copy is always under **Borrow a starting point → Course notes**.
+- **Line types instead of fiddling with spaces.** The **Line type** menu above the editor says what the current line is and changes it: Title, Section `##`, Sub-section `###`, Sub-sub-section `####`, Label, Bullet, Numbered step, Task or Plain text. It works on every selected line. Shortcuts: `Ctrl+Alt+1`–`4` for headings, `Ctrl+Alt+0` for plain text, `Ctrl+B` for a label (or bold the selected words), `Ctrl+Shift+8` / `7` for bullets and steps.
+- **Labels make sub-sections.** A line in bold (`**INTUITION**`), in capitals (`PROBLEM-SOLVING`) or ending in a colon (`Light reactions:`) now owns the lines under it at the same indent, up to the next label or heading. Before, those bullets became its siblings. Press Enter after a label to start its first bullet.
+- **Indenting that can't go wonky.** Tab / Shift+Tab (also `Ctrl+]` / `Ctrl+[`) move a line exactly one level and bring its sub-points along. A line can't sit more than one level deeper than the line above it, and odd spacing snaps to the two-space grid. Enter on an empty sub-bullet steps it back out one level.
+- **Tidy** evens out a whole notebook: two spaces per level, tabs converted, every bullet `-`. It never changes what nests under what, and Ctrl+Z undoes it.
+- **Guides in the editor.** Sections, sub-sections and labels get colored bands, each indent level gets its own rail, and study blocks are tinted, so the outline is visible while you type.
+- **Jump to** lists every section and label; pick one to go to it.
+- **Study blocks.** `Theorem 4.1.1 (Name): …`, `Definition …:`, `Proof:`, `Warning:` / `Watch out:`, `Tip:` / `Intuition:`, `Note:` and worked examples `Ex 3: …` are drawn as boxes in Cards and on the map. **+ Insert…** adds them, or math templates.
+- **Math that looks like math.** `e^{2x}`, `x^2`, `(−1)^(i+j)`, `a_ij`, `y_{p1}` become real superscripts and subscripts. `[a b; c d]`, `|1 0; −3 2|` and `[[1,x,y],[1,x1,y1]]` become matrices and determinants in Cards and Practice. The map uses Unicode (e²ˣ, aᵢⱼ), and the handwriting writes exponents small and raised. Hand-drawn ∂ ∇ ⇔ ε δ ω ⟨ ⟩ ∈ ⊆ ⊥ ℝ ∀ ∃ were added for the handwritten pages.
+- **Better practice for math courses.** Theorems become "State Theorem 4.1.1 (…)" cards and named definitions become "Define Wronskian (Definition 4.1.2)" cards. Numbered steps become one "List the steps" card. Headings, labels and the answers under a question no longer make cards of their own, and answers are copied exactly as written. Lines such as `If a_n(x) = 0 somewhere…` or `Nul A = {0} ⇔ one-to-one` are no longer mistaken for definitions.
+- **Big notebooks open folded on the map**, down to their sections and labels, each showing how many ideas it holds. Select one to unfold it, or press **Unfold**.
+
 ## Beta: what's new
 
 ![The Page view: your notes in handwriting](docs/beta-page-view.png)
@@ -42,16 +58,22 @@ The first nonempty unbulleted line is the topic. Unindented lines become branche
 ```text
 Cell biology
 ## Energy
+**INTUITION**
 - ATP: the cell's energy currency
 - Light → excited electrons → ATP
 - Where is DNA stored?
   - In the nucleus
 - ! Follow the evidence
 - e.g. a plant cell
+**EQUATIONS**
+- Theorem 1 (Energy balance): energy in = energy out + stored
+- 6CO_2 + 6H_2O → C_6H_{12}O_6 + 6O_2
+1. Find the limiting factor
+2. Change one variable at a time
 - [ ] Read chapter 8
 ```
 
-Tab / Shift+Tab indent/outdent. Enter continues a list. Esc then Tab leaves the editor. Select map ideas with click, Enter, or Space; fold them using the selected-idea panel. Map movement works with arrows or the Move menu.
+Tab / Shift+Tab indent/outdent one level. Enter continues a list. Esc then Tab leaves the editor. Select map ideas with click, Enter, or Space; fold them using the selected-idea panel. Map movement works with arrows or the Move menu.
 
 Practice ratings are your own check-in, not a mastery score. Sessions reset when the note text changes or the page reloads. This release does not schedule spaced repetition.
 
@@ -65,7 +87,7 @@ Requires Node 18+ for tests only:
 npm test
 ```
 
-62 tests cover the original parser/layout/render behaviors plus example-boundary regressions, source locations, notebook validation, migration, save denial/quota, stale writes, source-grounded study cards, recall sessions, and the beta additions: formulas, the Key/heading fixes, delete/undo/duplicate/search, shuffle and missed cards, Anki escaping, map text size, SVG text pinning, and handwritten page layout (margins, page breaks, accent ink across wrapped lines).
+84 tests cover the original parser/layout/render behaviors plus example-boundary regressions, source locations, notebook validation, migration, save denial/quota, stale writes, source-grounded study cards, recall sessions, and the beta additions: formulas, the Key/heading fixes, delete/undo/duplicate/search, shuffle and missed cards, Anki escaping, map text size, SVG text pinning, and handwritten page layout (margins, page breaks, accent ink across wrapped lines). tests/study.test.js covers labels and sub-sections, study blocks, theorem/definition/steps cards, math rendering (superscripts, subscripts, matrices, escaping), line types, one-level indenting, Tidy keeping the tree unchanged, the Jump to list, one-time delivery of the course notebooks, and the three notebooks themselves.
 
 ## Privacy and limits
 
@@ -77,7 +99,10 @@ The existing docs/screenshot-*.png images in the original PR depict the earlier 
 
 ## Files
 
-- js/parser.js — notes structure, kinds, and source lines
+- js/parser.js — notes structure, kinds (labels, study blocks, worked examples), and source lines
+- js/structure.js — line types, one-level indenting, Tidy and the section list for the editor (pure, tested)
+- js/mathtext.js — superscripts, subscripts and matrices for cards, the map and the handwriting (pure, tested)
+- js/course-notes.js — the course notebooks that ship with the site
 - js/layout.js — map geometry and reading-card grouping
 - js/render.js — escaped SVG/HTML and canvas exports
 - js/notebooks.js — validated persistence, notebook desk actions, recall model and Anki export, shared with Node

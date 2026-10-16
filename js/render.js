@@ -14,6 +14,7 @@
 
   // layout.js is loaded first in the browser; Node gets it with require.
   const linkPath = (link) => (typeof VisualNotes !== 'undefined' ? VisualNotes : require('./layout.js')).linkPath(link);
+  const mathHTML = (text) => (typeof VisualNotes !== 'undefined' && VisualNotes.mathHTML ? VisualNotes : require('./mathtext.js')).mathHTML(text);
 
   function esc(text) {
     return String(text)
@@ -40,15 +41,23 @@
     if (box.depth === 0) {
       return { fill: theme.ink, stroke: theme.ink, strokeWidth: 0, text: theme.paper, detail: theme.paper, rx: Math.min(box.h / 2, 24) };
     }
+    // A sub-section label reads as a tab in the branch's color, not as another idea.
+    if (node.kind === 'label' && box.depth > 1) {
+      return { fill: br.soft, stroke: br.strong, strokeWidth: 0, text: br.strong, detail: theme.inkSoft, rx: 4 };
+    }
     const fill = node.important ? theme.highlight : box.depth === 1 ? br.soft : theme.sheet;
+    const callout = node.kind === 'callout' ? node.callout : null;
+    let dash = node.kind === 'question' ? [5, 4] : null;
+    if (callout === 'warning') dash = [8, 3, 2, 3];
+    else if (['proof', 'tip', 'note'].includes(callout)) dash = [2, 3];
     return {
       fill,
       stroke: br.strong,
-      strokeWidth: box.depth === 1 ? 2.5 : 1.5,
-      dash: node.kind === 'question' ? [5, 4] : null,
+      strokeWidth: box.depth === 1 ? 2.5 : callout === 'theorem' || callout === 'definition' ? 3 : 1.5,
+      dash,
       text: theme.ink,
       detail: theme.inkSoft,
-      rx: box.depth === 1 ? 14 : 9,
+      rx: box.depth === 1 ? 14 : callout === 'theorem' || callout === 'definition' ? 3 : 9,
     };
   }
 
@@ -185,41 +194,53 @@
     return canvas;
   }
 
+  const CALLOUT_ICONS = { theorem: '◆', definition: '≔', proof: '∴', warning: '⚠', tip: '✦', note: '✎' };
+
   function itemHTML(node) {
+    const m = mathHTML;
     const classes = ['item', `is-${node.kind}`];
+    if (node.kind === 'callout') classes.push(`callout-${node.callout}`);
     if (node.important) classes.push('is-important');
     if (node.done) classes.push('is-done');
     let body;
     switch (node.kind) {
       case 'definition':
-        body = `<span class="term">${esc(node.term)}</span> <span class="detail">${esc(node.detail)}</span>`;
+        body = `<span class="term">${m(node.term)}</span> <span class="detail">${m(node.detail)}</span>`;
         break;
       case 'flow':
-        body = `<span class="flow">${node.steps.map((s) => `<span class="step">${esc(s)}</span>`).join('<span class="arrow" aria-label="then">→</span>')}</span>`;
+        body = `<span class="flow">${node.steps.map((s) => `<span class="step">${m(s)}</span>`).join('<span class="arrow" aria-label="then">→</span>')}</span>`;
         break;
       case 'question':
-        body = `<span class="badge" aria-label="Question">?</span><span class="words">${esc(node.text)}</span>`;
+        body = `<span class="badge" aria-label="Question">?</span><span class="words">${m(node.text)}</span>`;
         break;
       case 'formula':
-        body = `<span class="formula"><span class="lhs">${esc(node.lhs)}</span> = <span class="rhs">${esc(node.rhs)}</span></span>`;
+        body = `<span class="formula"><span class="lhs">${m(node.lhs)}</span> = <span class="rhs">${m(node.rhs)}</span></span>`;
         break;
       case 'example':
-        body = `<span class="badge">e.g.</span><span class="words">${esc(node.text)}</span>`;
+        body = `<span class="badge">${node.label ? m(node.label) : 'e.g.'}</span><span class="words">${m(node.text)}</span>`;
+        break;
+      case 'callout':
+        body = `<span class="callout-tag"><span aria-hidden="true">${CALLOUT_ICONS[node.callout]}</span> ${m(node.label)}</span>` +
+          (node.body ? `<span class="words">${m(node.body)}</span>` : '');
+        break;
+      case 'label':
+        body = `<span class="label-text">${m(node.text)}</span>`;
         break;
       case 'todo':
-        body = `<span class="check" role="img" aria-label="${node.done ? 'Done' : 'To do'}">${node.done ? '✓' : ''}</span><span class="words">${esc(node.text)}</span>`;
+        body = `<span class="check" role="img" aria-label="${node.done ? 'Done' : 'To do'}">${node.done ? '✓' : ''}</span><span class="words">${m(node.text)}</span>`;
         break;
       default:
-        body = `<span class="words">${esc(node.text)}</span>`;
+        body = `<span class="words">${m(node.text)}</span>`;
     }
+    const num = node.numbered ? `<span class="num">${node.numbered}.</span>` : '';
     const star = node.important ? '<span class="star" role="img" aria-label="Important">★</span>' : '';
     const kids = node.children.length ? `<ul>${node.children.map(itemHTML).join('')}</ul>` : '';
-    return `<li class="${classes.join(' ')}"><div class="line">${star}${body}<button class="source-link" type="button" data-source-line="${node.sourceLine}" aria-label="Edit source: ${esc(node.text)}">↗</button></div>${kids}</li>`;
+    return `<li class="${classes.join(' ')}"><div class="line">${star}${num}${body}<button class="source-link" type="button" data-source-line="${node.sourceLine}" aria-label="Edit source: ${esc(node.text)}">↗</button></div>${kids}</li>`;
   }
 
   // The study-card board for the Cards view.
   function cardsHTML(tree, cards) {
-    const parts = [`<header class="board-head"><h2 class="board-title">${esc(tree.title)}</h2></header>`];
+    const parts = [`<header class="board-head"><h2 class="board-title">${mathHTML(tree.title)}</h2></header>`];
     if (!cards.length) {
       parts.push('<p class="board-empty">Add a few lines under the first one and each branch gets its own card.</p>');
       return parts.join('');
@@ -233,11 +254,14 @@
       if (!head) title = 'Key points';
       else if (head.kind === 'definition') {
         title = head.term;
-        sub = `<p class="card-sub">${esc(head.detail)}</p>`;
+        sub = `<p class="card-sub">${mathHTML(head.detail)}</p>`;
+      } else if (head.kind === 'callout') {
+        title = head.label;
+        if (head.body) sub = `<p class="card-sub">${mathHTML(head.body)}</p>`;
       } else title = head.text;
       const star = head && head.important ? '★ ' : '';
       parts.push(`<article class="card" style="--c: var(--b${color}); --c-soft: var(--b${color}-soft)">` +
-        `<h3 class="card-title"><span class="mark">${esc(star + title)}</span></h3>${sub}` +
+        `<h3 class="card-title"><span class="mark">${esc(star)}${mathHTML(title)}</span></h3>${sub}` +
         `<ul class="items">${card.items.map(itemHTML).join('')}</ul></article>`);
     });
     parts.push('</div>');

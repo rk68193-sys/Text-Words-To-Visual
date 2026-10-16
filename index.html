@@ -47,16 +47,44 @@
     <section class="notes-pane" aria-labelledby="notes-label">
       <div class="pane-head"><div><span class="eyebrow">01 / PUT IT IN WORDS</span><label id="notes-label" for="notes">A place to begin.</label></div><span class="ink-mark" aria-hidden="true">↘</span></div>
       <div class="writing-tools" role="toolbar" aria-label="Writing tools" aria-controls="notes">
-        <button type="button" data-tool="outdent" aria-label="Outdent">⇤</button>
-        <button type="button" data-tool="indent" aria-label="Indent">⇥</button>
-        <button type="button" data-tool="heading" aria-label="Make heading">##</button>
-        <button type="button" data-tool="bullet" aria-label="Bullet">•</button>
-        <button type="button" data-tool="todo" aria-label="Task">☐</button>
-        <button type="button" data-tool="important" aria-label="Mark important">!</button>
-        <button type="button" data-insert=" → " aria-label="Insert arrow">→</button>
-        <button type="button" data-insert=": " aria-label="Insert definition colon">Term:</button>
+        <div class="tool-row">
+          <select id="line-type" aria-label="Line type" title="What this line is: a section, a sub-section, a label that groups the lines below it, a bullet or a step (Ctrl+Alt+1–4, Ctrl+B)"></select>
+          <button type="button" data-tool="outdent" aria-label="Outdent one level" title="Outdent one level (Shift+Tab or Ctrl+[)">⇤</button>
+          <button type="button" data-tool="indent" aria-label="Indent one level" title="Indent one level under the line above (Tab or Ctrl+])">⇥</button>
+        </div>
+        <div class="tool-row">
+          <button type="button" data-tool="bullet" aria-label="Bullet" title="Bullet (Ctrl+Shift+8)">•</button>
+          <button type="button" data-tool="numbered" aria-label="Numbered step" title="Numbered step (Ctrl+Shift+7)">1.</button>
+          <button type="button" data-tool="todo" aria-label="Task">☐</button>
+          <button type="button" data-tool="important" aria-label="Mark important">!</button>
+          <button type="button" data-insert=" → " aria-label="Insert arrow">→</button>
+          <button type="button" data-insert=": " aria-label="Insert definition colon">Term:</button>
+        </div>
+        <div class="tool-row">
+          <select id="jump-to" aria-label="Jump to a section"><option value="">Jump to…</option></select>
+          <select id="insert-kind" aria-label="Insert a study block or math">
+            <option value="">+ Insert…</option>
+            <optgroup label="Study blocks (start of line)">
+              <option value="Theorem: ">Theorem</option>
+              <option value="Definition: ">Definition</option>
+              <option value="Ex 1: ">Worked example</option>
+              <option value="Proof: ">Proof</option>
+              <option value="Warning: ">Warning / trap</option>
+              <option value="Tip: ">Tip / intuition</option>
+              <option value="Q: ">Question</option>
+            </optgroup>
+            <optgroup label="Math (at the cursor)">
+              <option value="^{}">Superscript x^{2}</option>
+              <option value="_{}">Subscript a_{ij}</option>
+              <option value="[a b; c d]">Matrix [a b; c d]</option>
+              <option value="|a b; c d|">Determinant |a b; c d|</option>
+            </optgroup>
+          </select>
+          <button type="button" data-tool="tidy" class="tidy" title="Even out the indentation. What nests under what stays the same.">Tidy</button>
+        </div>
       </div>
       <div class="paper-wrap">
+        <div id="notes-guides" class="notes-guides" aria-hidden="true"></div>
         <textarea id="notes" spellcheck="true" autocapitalize="sentences" aria-describedby="notes-hint" placeholder="A topic on the first line…&#10;&#10;## A big idea&#10;- A detail that matters&#10;- Term: what it means"></textarea>
       </div>
       <div class="notes-meta"><span id="status" class="status"></span><span id="save-status" class="save-status" role="status">Saved on this browser</span></div>
@@ -64,17 +92,23 @@
       <details class="cheats" id="cheats">
         <summary>A few useful marks <span aria-hidden="true">+</span></summary>
         <dl>
-          <dt><code>## A big idea</code></dt><dd>A new branch</dd>
-          <dt><code>  - A detail</code></dt><dd>A connected idea; indent to nest</dd>
+          <dt><code>## A big idea</code></dt><dd>A section: a new branch (### for a sub-section)</dd>
+          <dt><code>**INTUITION**</code></dt><dd>A label: the lines below it at the same indent belong to it, until the next label or heading</dd>
+          <dt><code>  - A detail</code></dt><dd>A connected idea; ⇥ nests it one level under the line above</dd>
+          <dt><code>1. First step</code></dt><dd>Numbered steps become a "list the steps" practice card</dd>
           <dt><code>Term: meaning</code></dt><dd>A definition + a practice card</dd>
+          <dt><code>Theorem 2 (Name): …</code></dt><dd>A theorem box + a "state it" card (also Definition, Proof, Warning, Tip, Note)</dd>
+          <dt><code>Ex 3: …</code></dt><dd>A worked example</dd>
           <dt><code>A → B → C</code></dt><dd>A sequence + next-step practice</dd>
           <dt><code>F = ma</code></dt><dd>A formula + fill-in practice</dd>
+          <dt><code>e^{2x}, a_ij</code></dt><dd>Superscripts and subscripts</dd>
+          <dt><code>[a b; c d]</code></dt><dd>A matrix (|a b; c d| for a determinant)</dd>
           <dt><code>Why does it work?</code></dt><dd>A question; indent an answer beneath it to practice</dd>
           <dt><code>! Remember this</code></dt><dd>A highlighted idea</dd>
           <dt><code>e.g. a real example</code></dt><dd>An example</dd>
           <dt><code>[ ] Read chapter 8</code></dt><dd>A task; [x] marks it done</dd>
         </dl>
-        <p class="hint">Tab / Shift+Tab indent. Esc then Tab leaves the editor. Enter continues a list. Type <code>-&gt;</code> for →. Press <kbd>?</kbd> outside the editor for every shortcut.</p>
+        <p class="hint">Tab / Shift+Tab move a line and its sub-points one level. Esc then Tab leaves the editor. Enter continues a list; Enter on an empty sub-bullet steps it back out. Type <code>-&gt;</code> for →. Press <kbd>?</kbd> outside the editor for every shortcut.</p>
       </details>
       <div class="sample-row"><label for="examples">Borrow a starting point</label><select id="examples"><option value="">Choose an example…</option></select></div>
       <p class="privacy-note">Your notes stay in this browser. No account, uploads, or AI service. Keep a backup for safekeeping.</p>
@@ -93,7 +127,7 @@
       <div class="board">
         <div id="map-view" class="map-view">
           <svg id="map" class="map" role="group" tabindex="0" aria-label="Mind map. Arrow keys move, plus and minus zoom, Home fits. Select an idea to edit its source."><g id="camera"></g></svg>
-          <p class="map-tip">Select an idea to find its words. Drag to wander.</p>
+          <p class="map-tip" id="map-tip">Select an idea to find its words. Drag to wander.</p>
           <div id="focus-bar" class="focus-bar" hidden><button type="button" id="leave-focus" class="btn">← Whole map</button><span id="focus-label"></span></div>
           <div class="map-tools" role="group" aria-label="Map controls">
             <button type="button" id="zoom-out" class="tool" aria-label="Zoom out">−</button>
@@ -155,7 +189,10 @@
         <dt><kbd>Ctrl</kbd> + <kbd>S</kbd></dt><dd>Save now (notes also save as you type)</dd>
         <dt><kbd>Ctrl</kbd> + <kbd>K</kbd></dt><dd>Find a notebook</dd>
         <dt><kbd>Ctrl</kbd> + <kbd>E</kbd></dt><dd>Jump between the editor and the board</dd>
-        <dt><kbd>Tab</kbd> / <kbd>Shift</kbd> + <kbd>Tab</kbd></dt><dd>Indent / outdent lines in the editor</dd>
+        <dt><kbd>Tab</kbd> / <kbd>Shift</kbd> + <kbd>Tab</kbd></dt><dd>Indent / outdent a line and its sub-points one level (also <kbd>Ctrl</kbd> + <kbd>]</kbd> / <kbd>[</kbd>)</dd>
+        <dt><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>1</kbd>–<kbd>4</kbd></dt><dd>Title, section, sub-section, sub-sub-section (<kbd>0</kbd> for plain text)</dd>
+        <dt><kbd>Ctrl</kbd> + <kbd>B</kbd></dt><dd>Make the line a label (or bold the selected words)</dd>
+        <dt><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>8</kbd> / <kbd>7</kbd></dt><dd>Bullet / numbered step</dd>
         <dt><kbd>Esc</kbd> then <kbd>Tab</kbd></dt><dd>Leave the editor</dd>
         <dt>Arrows, <kbd>+</kbd> <kbd>−</kbd>, <kbd>Home</kbd></dt><dd>Move, zoom and fit the map</dd>
         <dt><kbd>F</kbd></dt><dd>Focus the selected branch (<kbd>Esc</kbd> returns to the whole map)</dd>
@@ -168,9 +205,12 @@
   <div id="toast" class="toast" role="status" hidden><span id="toast-text"></span><button type="button" id="toast-undo">Undo</button></div>
 </div>
 <script src="js/parser.js"></script>
+<script src="js/mathtext.js"></script>
+<script src="js/structure.js"></script>
 <script src="js/layout.js"></script>
 <script src="js/render.js"></script>
 <script src="js/examples.js"></script>
+<script src="js/course-notes.js"></script>
 <script src="js/notebooks.js"></script>
 <script src="js/handpage.js"></script>
 <script src="js/symbols.js"></script>

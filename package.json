@@ -1,6 +1,6 @@
 {
   "name": "text-notes-to-visual-notes",
-  "version": "0.2.0-beta",
+  "version": "0.3.0-beta",
   "private": true,
   "description": "Turn plain text notes into mind maps, study cards, recall practice and handwritten PDF pages, right in the browser.",
   "scripts": {

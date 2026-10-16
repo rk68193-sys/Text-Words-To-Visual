@@ -172,6 +172,11 @@
     return `${size * font.scale}px "${font.family}", cursive`;
   }
 
+  // Raised and lowered letters (exponents, subscripts) come from mathtext.js as private-use
+  // characters; they are written as smaller letters above or below the line.
+  const SCRIPT_SIZE = 0.62;
+  const scriptOf = (ch) => (root.VisualNotes && root.VisualNotes.handScript ? root.VisualNotes.handScript(ch) : null);
+
   // How much room a character takes. Shared by the layout and the drawing so they agree.
   function makeAdvance(font, measureCtx) {
     const cache = new Map();
@@ -180,7 +185,9 @@
       let w = cache.get(key);
       if (w === undefined) {
         const sym = H.SYMBOLS[ch];
-        if (sym) w = (sym.w / 100) * size * font.scale;
+        const script = sym ? null : scriptOf(ch);
+        if (script) w = advance(script.base, size * SCRIPT_SIZE) * 1.04;
+        else if (sym) w = (sym.w / 100) * size * font.scale;
         else {
           measureCtx.font = fontCss(font, size);
           w = measureCtx.measureText(ch).width;
@@ -286,9 +293,13 @@
       const lineY = line.y + (rand() - 0.5) * mess * 2;
       ictx.font = fontCss(font, size);
 
-      const putGlyph = (ch, x, color, glyphSize = size) => {
+      const putGlyph = (glyph, x, color, fullSize = size) => {
+        const script = scriptOf(glyph);
+        const ch = script ? script.base : glyph;
+        const glyphSize = script ? fullSize * SCRIPT_SIZE : fullSize;
+        const shift = script ? (script.pos > 0 ? -0.42 : 0.2) * fullSize : 0;
         const tilt = (rand() - 0.5) * mess * 0.13;
-        const lift = (rand() - 0.5) * mess * glyphSize * 0.07 + slope * (x - startX);
+        const lift = shift + (rand() - 0.5) * mess * glyphSize * 0.07 + slope * (x - startX);
         const grow = 1 + (rand() - 0.5) * mess * 0.12;
         ictx.save();
         if (pen.bleed) {
@@ -338,7 +349,7 @@
 
       ictx.globalAlpha = pen.alpha;
       const width = size * (0.05 + pen.weight);
-      if (line.heading === 1 && line.text.trim()) {
+      if ((line.heading === 1 || line.label) && line.text.trim()) {
         wobblyLine(ictx, startX - 2, x + 2, lineY + size * 0.2 + slope * (x - startX), rand, width, s.accent);
       }
       if (line.boxed && line.text.trim()) {

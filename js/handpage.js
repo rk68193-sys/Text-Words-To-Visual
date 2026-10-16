@@ -29,6 +29,8 @@
   };
 
   const HEADING_SCALE = { 1: 1.6, 2: 1.3, 3: 1.12 };
+  // Exponents and subscripts become letters the handwriting writes small, above or below the line.
+  const hand = (text) => (typeof VisualNotes !== 'undefined' && VisualNotes.mathHand ? VisualNotes : require('./mathtext.js')).mathHand(text);
   const HEADING = /^(#{1,6})\s+(.*)$/;
   const BULLET = /^([-*+•·–—]|\d{1,3}[.)])\s+(.*)$/;
   const RULE = /^[-*_=~]{3,}$/;
@@ -81,7 +83,7 @@
       if (heading) {
         indents = [];
         const idea = parser.describe(content);
-        entries.push({ heading, level: 0, marker: null, text: idea.text || content.trim(), accent: heading > 1 ? Infinity : 0, highlight: idea.important, boxed: false });
+        entries.push({ heading, level: 0, marker: null, text: hand(idea.text || content.trim()), accent: heading > 1 ? Infinity : 0, highlight: idea.important, boxed: false });
         return;
       }
 
@@ -89,25 +91,33 @@
       if (!indents.length || indents[indents.length - 1] < indent) indents.push(indent);
       const level = Math.min(6, indents.length - 1);
 
+      // A label (**INTUITION**) is written in the accent ink and underlined, like a small heading.
+      if (!bullet && parser.isLabel(body)) {
+        const text = hand(content.replace(/\*\*|__/g, '').replace(/\s*:\s*$/, '').trim());
+        entries.push({ heading: 0, label: true, level, marker: null, text, accent: Infinity, highlight: false, boxed: false });
+        return;
+      }
+
       let marker = null;
       if (bullet) marker = /^\d/.test(bullet[1]) ? bullet[1] : '•';
       const todo = TODO.exec(content);
       if (todo) marker = todo[1] === ' ' ? '☐' : '☑';
 
       const idea = parser.describe(content);
-      let words = idea.text;
+      let words = hand(idea.text);
       let accent = 0;
-      if (idea.kind === 'definition') {
-        words = `${idea.term}: ${idea.detail}`;
-        accent = idea.term.length + 1;
-      } else if (idea.kind === 'example') {
-        words = `e.g. ${idea.text}`;
-        accent = 4;
+      // The lead-in (a term, "Theorem 2:", "Ex 3:") is written in the accent ink.
+      const leadIn = (lead, rest) => { const l = hand(lead); words = rest ? `${l}: ${hand(rest)}` : l; accent = l.length + 1; };
+      if (idea.kind === 'definition') leadIn(idea.term, idea.detail);
+      else if (idea.kind === 'callout') leadIn(idea.label, idea.body);
+      else if (idea.kind === 'example') {
+        if (idea.label) leadIn(idea.label, idea.text);
+        else { words = `e.g. ${hand(idea.text)}`; accent = 4; }
       } else if (idea.kind === 'question') {
         if (!/\?\s*$/.test(words)) words += '?';
         accent = Infinity;
       } else if (idea.kind === 'flow') {
-        words = idea.steps.join(' → ');
+        words = hand(idea.steps.join(' → '));
       }
       entries.push({ heading: 0, level, marker, text: words, accent, highlight: idea.important, boxed: idea.kind === 'formula' });
     });
@@ -200,6 +210,7 @@
           width,
           size: lineSize,
           heading: entry.heading,
+          label: !!entry.label,
           marker: j === 0 && entry.marker ? { text: entry.marker, x: markerX } : null,
           accent: Math.max(0, Math.min(piece.length, entry.accent - offset)),
           highlight: !!entry.highlight,

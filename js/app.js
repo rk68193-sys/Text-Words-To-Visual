@@ -4,7 +4,7 @@
 
   const VN = window.VisualNotes;
   const $ = (id) => document.getElementById(id);
-  const KEYS = { view: 'tn2vn.view', oneSide: 'tn2vn.oneSide', settings: 'tn2vn.settings' };
+  const KEYS = { view: 'tn2vn.view', oneSide: 'tn2vn.oneSide', settings: 'tn2vn.settings', delivered: 'tn2vn.delivered' };
   const VIEWS = ['map', 'cards', 'practice', 'page'];
   const HW = window.Handwriter;
 
@@ -56,6 +56,7 @@
     cam: { x: 0, y: 0, k: 1 },
     userMoved: false, // once you pan or zoom, typing no longer re-centers the map
     focusKey: null, // a branch shown on its own, or null for the whole map
+    autoFold: true, // a notebook just opened: fold a big one down to its sections
   };
 
   // Reader preferences, kept together in one browser key.
@@ -155,7 +156,7 @@
   }
   function resetBoard() {
     clearTimeout(pending);
-    state.collapsed.clear(); state.userMoved = false; state.focusKey = null;
+    state.collapsed.clear(); state.userMoved = false; state.focusKey = null; state.autoFold = true;
     selectedKey = null; el.inspector.hidden = true;
     practice = null; practiceSource = null;
   }
@@ -280,8 +281,20 @@
 
   // ---------- Drawing ----------
 
+  // A long notebook opens on the map as its sections and sub-sections, each showing how many
+  // ideas it holds; select one to unfold it, or press Unfold for everything.
+  const FOLD_OVER = 60;
+  function foldBigNotebook() {
+    state.autoFold = false;
+    if (state.tree.count <= FOLD_OVER) return;
+    for (const branch of state.tree.root.children) for (const node of branch.children) if (node.children.length) state.collapsed.add(node.key);
+  }
+
   function render() {
     state.tree = VN.parseNotes(el.notes.value);
+    if (state.autoFold) foldBigNotebook();
+    renderGuides();
+    renderJumpList();
     const branches = state.tree.root.children.length;
     el.status.textContent = `${state.tree.count} ${state.tree.count === 1 ? 'idea' : 'ideas'} · ${branches} ${branches === 1 ? 'branch' : 'branches'}`;
     const deck = VN.studyCards(state.tree);
@@ -310,6 +323,7 @@
     state.layout = VN.layoutMindMap(mapTree(), measure, { collapsed: state.collapsed, oneSide, textScale: settings.textSize / 100 });
     el.camera.innerHTML = VN.mindMapMarkup(state.layout, theme, fonts, true);
     el.unfold.disabled = state.collapsed.size === 0;
+    $('map-tip').textContent = state.collapsed.size ? 'Folded branches show +ideas inside. Select one, then Unfold branch, or press Unfold for all.' : 'Select an idea to find its words. Drag to wander.';
     if (state.userMoved) applyCamera();
     else fitCamera();
     if (selectedKey) updateSelection();
@@ -665,10 +679,11 @@
     if (!practiceInbox.length) return '';
     const esc = VN.esc;
     return '<section class="inbox" aria-label="Questions without answers"><h3>Questions still waiting for an answer</h3><p class="context">Indent an answer under each one and it joins your practice set.</p><ul>' +
-      practiceInbox.map(q => '<li><span>' + esc(q.text) + '</span><button type="button" class="btn quiet" data-practice="source" data-line="' + q.sourceLine + '">Answer it ↗</button></li>').join('') + '</ul></section>';
+      practiceInbox.map(q => '<li><span>' + VN.mathHTML(q.text) + '</span><button type="button" class="btn quiet" data-practice="source" data-line="' + q.sourceLine + '">Answer it ↗</button></li>').join('') + '</ul></section>';
   }
   function renderPractice() {
     const esc = VN.esc;
+    const math = VN.mathHTML;
     const card = practice.queue[0];
     const total = VN.studyCards(state.tree).cards.length;
     if (!total) {
@@ -678,7 +693,7 @@
     if (!card) {
       const missed = practice.missed || [];
       el.practiceView.innerHTML = '<div class="practice-sheet"><span class="eyebrow">A GOOD PLACE TO PAUSE</span><h2>You worked through this set.</h2><p>You marked ' + practice.remembered + ' cards as remembered across ' + practice.attempts + ' attempts. That is your own check-in, not a mastery score.</p>' +
-        (missed.length ? '<p class="context">' + missed.length + ' card' + (missed.length === 1 ? '' : 's') + ' needed another look: ' + missed.slice(0, 4).map(c => '“' + esc(c.prompt) + '”').join(', ') + (missed.length > 4 ? '…' : '') + '</p>' : '') +
+        (missed.length ? '<p class="context">' + missed.length + ' card' + (missed.length === 1 ? '' : 's') + ' needed another look: ' + missed.slice(0, 4).map(c => '“' + VN.mathHTML(c.prompt) + '”').join(', ') + (missed.length > 4 ? '…' : '') + '</p>' : '') +
         '<div class="practice-actions">' + (missed.length ? '<button type="button" class="btn primary" data-practice="missed">Practice the ' + missed.length + ' I missed</button>' : '') +
         '<button type="button" class="btn' + (missed.length ? '' : ' primary') + '" data-practice="restart">Try the whole set again</button><button type="button" class="btn" data-practice="map">Return to the map</button></div></div>' +
         inboxHTML() + '<p class="practice-note">Come back after a break and try to retrieve the ideas again.</p>';
@@ -686,9 +701,9 @@
     }
     el.practiceView.innerHTML =
       '<div class="practice-heading"><span>' + practice.queue.length + ' left · ' + practice.remembered + ' remembered</span><div class="practice-tools"><button class="btn quiet" type="button" data-practice="shuffle">' + (settings.shuffle ? 'In order' : 'Shuffle') + '</button><button class="btn quiet" type="button" data-practice="restart">Start over</button></div></div>' +
-      '<article class="practice-sheet"><span class="eyebrow">' + esc(card.kind) + '</span><p class="context">' + esc(card.branch) + '</p><h2>' + esc(card.prompt) + '</h2>' +
-      (card.context ? '<p class="context">So far: ' + esc(card.context) + '</p>' : '') +
-      (practice.revealed ? '<div class="recall-answer" role="status">' + esc(card.answer) + '</div><div class="practice-actions"><button class="btn" type="button" data-practice="again">Need another look</button><button class="btn primary" type="button" data-practice="known">I remembered</button></div><p class="practice-keys"><kbd>1</kbd> need another look · <kbd>2</kbd> I remembered</p>' :
+      '<article class="practice-sheet"><span class="eyebrow">' + esc(card.kind) + '</span><p class="context">' + math(card.branch) + '</p><h2>' + math(card.prompt) + '</h2>' +
+      (card.context ? '<p class="context">So far: ' + math(card.context) + '</p>' : '') +
+      (practice.revealed ? '<div class="recall-answer" role="status">' + math(card.answer) + '</div><div class="practice-actions"><button class="btn" type="button" data-practice="again">Need another look</button><button class="btn primary" type="button" data-practice="known">I remembered</button></div><p class="practice-keys"><kbd>1</kbd> need another look · <kbd>2</kbd> I remembered</p>' :
         '<p class="context">Take a moment. Say it, sketch it, or write it from memory.</p><div class="practice-actions"><button class="btn primary" type="button" data-practice="reveal">Reveal answer</button></div><p class="practice-keys"><kbd>Space</kbd> reveals the answer</p>') +
       '</article><p class="practice-note">Answer from your notes · <button type="button" class="btn quiet" data-practice="source">Edit source ↗</button></p>' + inboxHTML();
   }
@@ -731,45 +746,103 @@
     return value.lastIndexOf('\n', pos - 1) + 1;
   }
 
-  function indentLines(direction) {
+  // The lines the selection touches, by index. A selection ending at the start of a line leaves that line out.
+  function selectedLines() {
     const { value, selectionStart: start, selectionEnd: end } = el.notes;
-    const from = lineStartOf(value, start);
-    const last = end > start && value[end - 1] === '\n' ? end - 1 : end;
-    let to = value.indexOf('\n', last);
-    if (to < 0) to = value.length;
-    const lines = value.slice(from, to).split('\n');
-    const changed = lines.map((l) => (direction > 0 ? `  ${l}` : l.replace(/^( {1,2}|\t)/, '')));
-    const firstShift = changed[0].length - lines[0].length;
-    const block = changed.join('\n');
-    if (block === value.slice(from, to)) return;
-    el.notes.setSelectionRange(from, to);
-    insertText(block);
-    if (start === end) {
-      const caret = Math.max(from, start + firstShift);
+    const lines = value.split('\n');
+    const first = value.slice(0, start).split('\n').length - 1;
+    const last = value.slice(0, end > start && value[end - 1] === '\n' ? end - 1 : end).split('\n').length - 1;
+    return { lines, first, last, start, end };
+  }
+  const offsetOfLine = (lines, i) => lines.slice(0, i).reduce((n, l) => n + l.length + 1, 0);
+
+  // Replaces lines from..to with `next` (same count), keeping the edit on the undo stack.
+  // The caret stays with its words; a selection grows to cover the changed lines.
+  function replaceLines(sel, from, to, next) {
+    const before = sel.lines.slice(from, to + 1).join('\n');
+    const after = next.join('\n');
+    if (before === after) return false;
+    const start = offsetOfLine(sel.lines, from);
+    const caretLine = sel.first;
+    const col = sel.start - offsetOfLine(sel.lines, caretLine);
+    el.notes.setSelectionRange(start, start + before.length);
+    insertText(after);
+    if (sel.start === sel.end && caretLine >= from && caretLine <= to) {
+      const oldLine = sel.lines[caretLine];
+      const newLine = next[caretLine - from];
+      const lead = (l) => l.length - l.trimStart().length;
+      const newCol = Math.max(0, Math.min(newLine.length, col + (col >= lead(oldLine) ? newLine.length - oldLine.length : 0)));
+      const caret = start + offsetOfLine(next, caretLine - from) + newCol;
       el.notes.setSelectionRange(caret, caret);
     } else {
-      el.notes.setSelectionRange(from, from + block.length);
+      const first = Math.min(Math.max(sel.first, from), to) - from;
+      const last = Math.min(Math.max(sel.last, from), to) - from;
+      el.notes.setSelectionRange(start + offsetOfLine(next, first), start + offsetOfLine(next, last) + next[last].length);
     }
+    return true;
   }
 
-  // Enter on a bullet line starts the next bullet at the same depth.
-  // Enter on an empty bullet removes it, like in most note apps.
+  // Rewrites every line the selection touches with fn(line, index, lines).
+  function transformLines(fn) {
+    const sel = selectedLines();
+    const next = sel.lines.slice(sel.first, sel.last + 1).map((line, i) => fn(line, sel.first + i, sel.lines));
+    replaceLines(sel, sel.first, sel.last, next);
+    updateLineType();
+  }
+
+  // Tab and Shift+Tab: one level at a time, taking the sub-points along.
+  function shiftSelection(direction) {
+    const sel = selectedLines();
+    const moved = VN.shiftLines(sel.lines, sel.first, sel.last, direction);
+    if (!moved) {
+      if (direction > 0) showToast('That line is already one level under the line above it. Indent the line above first, or start a sub-point under it.');
+      return;
+    }
+    replaceLines(sel, moved.from, moved.to, moved.lines.slice(moved.from, moved.to + 1));
+  }
+
+  function applyLineType(type) {
+    transformLines((line, i, lines) => (line.trim() ? VN.setLineType(lines, i, type) : line));
+  }
+
+  // Ctrl+B: bold the selected words, or make the line a label (and back).
+  function boldOrLabel() {
+    const { value, selectionStart: start, selectionEnd: end } = el.notes;
+    const inOneLine = start !== end && !value.slice(start, end).includes('\n');
+    const line = value.slice(lineStartOf(value, start)).split('\n')[0];
+    if (inOneLine && value.slice(start, end).trim() !== line.trim()) {
+      const words = value.slice(start, end);
+      insertText(`**${words}**`);
+      el.notes.setSelectionRange(start + 2, start + 2 + words.length);
+      return;
+    }
+    applyLineType(/^\s*(?:\*\*.+\*\*|__.+__)\s*:?$/.test(line) ? 'plain' : 'label');
+  }
+
+  // Enter on a bullet line starts the next bullet at the same depth; after a label it starts
+  // the first bullet that belongs to the label. Enter on an empty sub-bullet steps it back out
+  // one level, and on an empty top-level bullet removes the bullet, like in most note apps.
   function continueList(e) {
     const { value, selectionStart: start, selectionEnd: end } = el.notes;
     if (start !== end) return;
     const from = lineStartOf(value, start);
     const before = value.slice(from, start);
+    const restOfLine = value.slice(start).split('\n')[0];
     const bullet = /^(\s*)([-*+•]|\d{1,3}[.)])(\s+)(\[[ xX]\]\s+)?/.exec(before);
     if (!bullet) {
       const indent = /^[ \t]*/.exec(before)[0];
-      if (indent && before.trim()) {
+      if (before.trim() && !restOfLine.trim() && VN.lineType(before) === 'label') {
+        e.preventDefault();
+        insertText(`\n${indent}- `);
+      } else if (indent && before.trim()) {
         e.preventDefault();
         insertText(`\n${indent}`);
       }
       return;
     }
     e.preventDefault();
-    if (!before.slice(bullet[0].length).trim() && !value.slice(start).split('\n')[0].trim()) {
+    if (!before.slice(bullet[0].length).trim() && !restOfLine.trim()) {
+      if (bullet[1].length) { shiftSelection(-1); return; }
       el.notes.setSelectionRange(from, start);
       insertText('');
       return;
@@ -779,18 +852,41 @@
     insertText(`\n${bullet[1]}${marker}${bullet[3]}${bullet[4] ? '[ ] ' : ''}`);
   }
 
+  const LINE_TYPE_KEYS = { 0: 'plain', 1: 'title', 2: 'section', 3: 'subsection', 4: 'subsubsection' };
   let escaped = false; // Esc, then Tab, lets keyboard users leave the box
   el.notes.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       escaped = true;
       return;
     }
+    const mod = e.ctrlKey || e.metaKey;
     if (e.key === 'Tab' && !escaped && !e.ctrlKey && !e.altKey && !e.metaKey) {
       e.preventDefault();
-      indentLines(e.shiftKey ? -1 : 1);
+      shiftSelection(e.shiftKey ? -1 : 1);
       return;
     }
     escaped = false;
+    if (mod && !e.altKey && !e.shiftKey && (e.key === ']' || e.key === '[')) {
+      e.preventDefault();
+      shiftSelection(e.key === ']' ? 1 : -1);
+      return;
+    }
+    // Ctrl+Alt+digit. AltGr is Ctrl+Alt on Windows, so a key that types a character is left alone.
+    if (mod && e.altKey && /^Digit[0-4]$/.test(e.code) && (e.metaKey || /^[0-4]$/.test(e.key))) {
+      e.preventDefault();
+      applyLineType(LINE_TYPE_KEYS[e.code.slice(-1)]);
+      return;
+    }
+    if (mod && e.shiftKey && !e.altKey && (e.code === 'Digit8' || e.code === 'Digit7')) {
+      e.preventDefault();
+      applyLineType(e.code === 'Digit8' ? 'bullet' : 'numbered');
+      return;
+    }
+    if (mod && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'b') {
+      e.preventDefault();
+      boldOrLabel();
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) continueList(e);
   });
   el.notes.addEventListener('blur', () => {
@@ -799,8 +895,105 @@
 
   el.notes.addEventListener('input', (e) => {
     if (settings.arrows && e.inputType === 'insertText' && e.data === '>') autoArrow();
+    renderGuides();
     saveSoon();
     renderSoon();
+  });
+
+  // ---------- Guides: headings, labels and indent levels drawn behind the writing ----------
+
+  const guides = $('notes-guides');
+  function guideLine(line) {
+    const esc = VN.esc;
+    if (!line) return '<div class="g">\u200b</div>';
+    const type = VN.lineType(line);
+    const parts = VN.splitLine(line);
+    const lead = /^[ \t]*/.exec(line)[0];
+    const level = Math.floor(parts.indent / VN.INDENT_UNIT);
+    const classes = ['g', `g-${type}`];
+    if (parts.heading) classes.push(`g-h${Math.min(parts.heading, 4)}`);
+    const idea = !parts.heading && type !== 'label' ? VN.describe(parts.content) : null;
+    if (idea && idea.kind === 'callout') classes.push(`g-callout g-${idea.callout}`);
+    if (idea && idea.kind === 'example' && idea.label) classes.push('g-example');
+    // Each level of indentation gets its own rail, so you can see what sits under what.
+    let rails = '';
+    let i = 0;
+    while (i < lead.length) {
+      const unit = lead[i] === '\t' ? '\t' : lead.slice(i, i + VN.INDENT_UNIT);
+      rails += unit === '\t' || unit.length === VN.INDENT_UNIT ? `<span class="rail">${unit}</span>` : unit;
+      i += unit.length;
+    }
+    const rest = line.slice(lead.length);
+    const mark = parts.marker && rest.startsWith(parts.marker) ? `<span class="mk mk-${level % 4}">${esc(parts.marker)}</span>` + esc(rest.slice(parts.marker.length)) : esc(rest);
+    return `<div class="${classes.join(' ')}">${rails}${mark || '\u200b'}</div>`;
+  }
+  function syncGuides() {
+    guides.style.width = el.notes.clientWidth + 'px';
+    guides.style.height = el.notes.clientHeight + 'px';
+    guides.scrollTop = el.notes.scrollTop;
+  }
+  function renderGuides() {
+    const lines = el.notes.value.split('\n');
+    const html = lines.map(guideLine);
+    // The first line is the notebook's title even without a #.
+    const first = lines.findIndex((l) => l.trim());
+    if (first >= 0 && /^\S/.test(lines[first]) && !/^(?:[-*+•]|\d{1,3}[.)])\s/.test(lines[first])) html[first] = html[first].replace('class="g ', 'class="g g-title ');
+    guides.innerHTML = html.join('');
+    syncGuides();
+  }
+  el.notes.addEventListener('scroll', () => { guides.scrollTop = el.notes.scrollTop; });
+  new ResizeObserver(syncGuides).observe(el.notes);
+
+  // ---------- Line type, Jump to, Insert ----------
+
+  const lineTypeSelect = $('line-type');
+  for (const [id, label] of Object.entries(VN.LINE_TYPES)) lineTypeSelect.add(new Option(label, id));
+  function updateLineType() {
+    const { value, selectionStart } = el.notes;
+    const line = value.slice(lineStartOf(value, selectionStart)).split('\n')[0];
+    lineTypeSelect.value = VN.lineType(line);
+  }
+  for (const type of ['keyup', 'click', 'focus']) el.notes.addEventListener(type, updateLineType);
+  lineTypeSelect.addEventListener('change', () => { applyLineType(lineTypeSelect.value); el.notes.focus(); });
+
+  const jumpSelect = $('jump-to');
+  let jumpKey = '';
+  function renderJumpList() {
+    const sections = VN.sectionsOf(state.tree);
+    const key = JSON.stringify(sections);
+    if (key === jumpKey) return;
+    jumpKey = key;
+    jumpSelect.replaceChildren(new Option(sections.length ? 'Jump to…' : 'Jump to… (add a ## section)', ''));
+    for (const s of sections) jumpSelect.add(new Option(`${'\u2003'.repeat(s.level)}${s.label ? '▸ ' : ''}${VN.mathPlain(s.text)}`, s.sourceLine));
+  }
+  jumpSelect.addEventListener('change', () => {
+    const line = jumpSelect.value;
+    jumpSelect.value = '';
+    if (line) jumpToSource(line);
+  });
+
+  $('insert-kind').addEventListener('change', () => {
+    const what = $('insert-kind').value;
+    $('insert-kind').value = '';
+    if (!what) return;
+    el.notes.focus();
+    if (/: $/.test(what)) {
+      // A study block goes at the start of the line, after any bullet or number.
+      transformLines((line) => {
+        const m = /^(\s*(?:(?:[-*+•]|\d{1,3}[.)])\s+)?)(.*)$/.exec(line);
+        return m[1] + what + m[2];
+      });
+      return;
+    }
+    const { value, selectionStart: start, selectionEnd: end } = el.notes;
+    const chosen = value.slice(start, end);
+    if (what.endsWith('{}')) {
+      insertText(what.slice(0, -1) + chosen + '}');
+      if (!chosen) el.notes.setSelectionRange(start + what.length - 1, start + what.length - 1);
+    } else {
+      insertText(what);
+      el.notes.setSelectionRange(start + 1, start + what.length - 1);
+    }
   });
 
   // ---------- Examples and the undo toast ----------
@@ -825,13 +1018,32 @@
   for (const [id, example] of Object.entries(VN.EXAMPLES)) {
     el.examples.add(new Option(example.label, id));
   }
+  const courseGroup = document.createElement('optgroup');
+  courseGroup.label = 'Course notes';
+  for (const book of VN.COURSE_NOTES || []) courseGroup.append(new Option(book.label, 'course:' + book.id));
+  if (courseGroup.children.length) el.examples.append(courseGroup);
   el.examples.addEventListener('change', () => {
-    const example = VN.EXAMPLES[el.examples.value];
+    const value = el.examples.value;
+    const example = value.startsWith('course:') ? (VN.COURSE_NOTES || []).find(b => 'course:' + b.id === value) : VN.EXAMPLES[value];
     el.examples.value = '';
     if (!example) return;
     addNotebooks([example.text]);
     showToast(`Opened “${example.label}” as a new notebook.`);
   });
+
+  // Course notebooks that ship with the site join the desk once; deleting one is remembered.
+  function deliverCourseNotes() {
+    if (storageBlocked || !VN.COURSE_NOTES) return;
+    let delivered = [];
+    try { delivered = JSON.parse(load(KEYS.delivered, '[]')) || []; } catch (e) { delivered = []; }
+    const result = VN.deliverNotebooks(library, VN.COURSE_NOTES, delivered);
+    save(KEYS.delivered, JSON.stringify(result.delivered));
+    if (!result.added.length) return;
+    library.documents = result.library.documents;
+    library.activeId = result.library.activeId;
+    const names = result.added.map(d => VN.titleOf(d).replace(/\s*·.*$/, ''));
+    setTimeout(() => showToast(`Added ${result.added.length === 1 ? 'a notebook' : result.added.length + ' notebooks'} from your Oct 16 notes: ${names.join(', ')}. They are on your desk above.`), 400);
+  }
 
   // ---------- Page view: the notebook in handwriting, and the PDF ----------
 
@@ -983,32 +1195,23 @@
     showToast(`Saved ${cards.length} cards. In Anki: File → Import.`);
   });
 
-  // ---------- Writing tools (handy on phones, which have no Tab key) ----------
+  // ---------- Writing tools ----------
 
-  // Rewrites every line the selection touches with fn(line), keeping it on the undo stack.
-  function transformLines(fn) {
-    const { value, selectionStart: start, selectionEnd: end } = el.notes;
-    const from = lineStartOf(value, start);
-    let to = value.indexOf('\n', end > start && value[end - 1] === '\n' ? end - 1 : end);
-    if (to < 0) to = value.length;
-    const before = value.slice(from, to);
-    const after = before.split('\n').map(fn).join('\n');
-    if (after === before) return;
-    el.notes.setSelectionRange(from, to);
-    insertText(after);
-    if (start === end) {
-      const caret = Math.min(from + after.split('\n')[0].length, Math.max(from, start + after.length - before.length));
-      el.notes.setSelectionRange(caret, caret);
-    }
-  }
   const LINE = /^(\s*)((?:[-*+•]|\d{1,3}[.)])\s+)?(\[[ xX]\]\s+)?(!\s*)?(.*)$/;
   const TOOLS = {
-    indent: () => indentLines(1),
-    outdent: () => indentLines(-1),
-    heading: () => transformLines(l => /^\s*#{1,6}\s/.test(l) ? l.replace(/^\s*#{1,6}\s+/, '') : '## ' + l.replace(LINE, '$5')),
+    indent: () => shiftSelection(1),
+    outdent: () => shiftSelection(-1),
     bullet: () => transformLines(l => { const m = LINE.exec(l); return m[2] ? m[1] + (m[3] || '') + (m[4] || '') + m[5] : m[1] + '- ' + (m[3] || '') + (m[4] || '') + m[5]; }),
+    numbered: () => applyLineType('numbered'),
     todo: () => transformLines(l => { const m = LINE.exec(l); return m[3] ? m[1] + (m[2] || '') + (m[4] || '') + m[5] : m[1] + (m[2] || '- ') + '[ ] ' + (m[4] || '') + m[5]; }),
     important: () => transformLines(l => { const m = LINE.exec(l); return m[1] + (m[2] || '') + (m[3] || '') + (m[4] ? '' : '! ') + m[5]; }),
+    tidy: () => {
+      const tidy = VN.tidyNotes(el.notes.value);
+      if (tidy === el.notes.value) { showToast('Already tidy: every level is two spaces and every bullet is "-".'); return; }
+      const sel = selectedLines(); // Tidy keeps every line, so the caret stays on its line
+      replaceLines(sel, 0, sel.lines.length - 1, tidy.split('\n'));
+      showToast('Tidied: two spaces per level, "-" bullets. What nests where is unchanged. Ctrl+Z undoes it.');
+    },
   };
   const toolbar = document.querySelector('.writing-tools');
   toolbar.addEventListener('pointerdown', e => { if (e.target.closest('button')) e.preventDefault(); }); // keep the caret in the notes
@@ -1104,6 +1307,7 @@
   // Text widths change once the web fonts arrive, so measure again then.
   if (document.fonts) document.fonts.ready.then(applyLettering);
 
+  deliverCourseNotes();
   el.notes.value = activeDoc().text;
   setTheme(settings.theme);
   syncPageControls();
