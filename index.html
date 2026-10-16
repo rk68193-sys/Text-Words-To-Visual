@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="An offline notebook for turning text into visual connections and recall practice.">
+<title>Fieldnotes — a desk for your thinking</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <a class="brand" href="#map" aria-label="Fieldnotes home"><span class="brand-stamp" aria-hidden="true">f.</span><span>Fieldnotes<small>A desk for your thinking</small></span></a>
+    <div class="top-actions">
+      <button type="button" class="btn quiet" id="theme">Evening</button>
+      <button type="button" class="btn quiet" id="open-settings" aria-haspopup="dialog">Settings</button>
+      <button type="button" class="btn quiet" id="open-help" aria-haspopup="dialog" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)">?</button>
+      <button type="button" class="btn quiet" id="import">Import notes</button>
+      <input id="import-file" type="file" accept=".md,.txt,.json,text/plain,text/markdown,application/json" hidden>
+      <details class="export-menu" id="export-menu">
+        <summary class="btn">Export ↗</summary>
+        <div class="export-options">
+          <button type="button" id="save-md">This notebook (.md)</button>
+          <button type="button" id="save-backup">All notebooks (.json)</button>
+          <button type="button" id="save-png">Mind map (.png)</button>
+          <button type="button" id="save-svg">Mind map (.svg)</button>
+          <button type="button" id="save-pdf">Handwritten pages (.pdf)</button>
+          <button type="button" id="save-anki">Practice cards for Anki (.txt)</button>
+          <button type="button" id="print">Print study cards / PDF</button>
+        </div>
+      </details>
+    </div>
+  </header>
+  <nav class="notebook-bar" aria-label="Your notebooks">
+    <span class="shelf-label">ON YOUR DESK</span>
+    <div id="notebook-list" class="notebook-list"></div>
+    <div class="shelf-tools">
+      <input type="search" id="notebook-search" class="shelf-search" placeholder="Find a notebook…" aria-label="Find a notebook">
+      <button type="button" id="new-notebook" class="btn quiet">+ New</button>
+      <button type="button" id="duplicate-notebook" class="btn quiet" title="Make a copy of this notebook">Duplicate</button>
+      <button type="button" id="delete-notebook" class="btn quiet danger" title="Remove this notebook (you can undo)">Delete</button>
+    </div>
+  </nav>
+  <div id="storage-banner" class="storage-banner" role="status" hidden><span id="storage-message"></span><button type="button" id="backup-warning" class="btn">Download backup</button></div>
+
+  <main class="workspace">
+    <section class="notes-pane" aria-labelledby="notes-label">
+      <div class="pane-head"><div><span class="eyebrow">01 / PUT IT IN WORDS</span><label id="notes-label" for="notes">A place to begin.</label></div><span class="ink-mark" aria-hidden="true">↘</span></div>
+      <div class="writing-tools" role="toolbar" aria-label="Writing tools" aria-controls="notes">
+        <button type="button" data-tool="outdent" aria-label="Outdent">⇤</button>
+        <button type="button" data-tool="indent" aria-label="Indent">⇥</button>
+        <button type="button" data-tool="heading" aria-label="Make heading">##</button>
+        <button type="button" data-tool="bullet" aria-label="Bullet">•</button>
+        <button type="button" data-tool="todo" aria-label="Task">☐</button>
+        <button type="button" data-tool="important" aria-label="Mark important">!</button>
+        <button type="button" data-insert=" → " aria-label="Insert arrow">→</button>
+        <button type="button" data-insert=": " aria-label="Insert definition colon">Term:</button>
+      </div>
+      <div class="paper-wrap">
+        <textarea id="notes" spellcheck="true" autocapitalize="sentences" aria-describedby="notes-hint" placeholder="A topic on the first line…&#10;&#10;## A big idea&#10;- A detail that matters&#10;- Term: what it means"></textarea>
+      </div>
+      <div class="notes-meta"><span id="status" class="status"></span><span id="save-status" class="save-status" role="status">Saved on this browser</span></div>
+      <p id="notes-hint" class="hint">Write a title, then headings and bullets. Your board takes shape as you write.</p>
+      <details class="cheats" id="cheats">
+        <summary>A few useful marks <span aria-hidden="true">+</span></summary>
+        <dl>
+          <dt><code>## A big idea</code></dt><dd>A new branch</dd>
+          <dt><code>  - A detail</code></dt><dd>A connected idea; indent to nest</dd>
+          <dt><code>Term: meaning</code></dt><dd>A definition + a practice card</dd>
+          <dt><code>A → B → C</code></dt><dd>A sequence + next-step practice</dd>
+          <dt><code>F = ma</code></dt><dd>A formula + fill-in practice</dd>
+          <dt><code>Why does it work?</code></dt><dd>A question; indent an answer beneath it to practice</dd>
+          <dt><code>! Remember this</code></dt><dd>A highlighted idea</dd>
+          <dt><code>e.g. a real example</code></dt><dd>An example</dd>
+          <dt><code>[ ] Read chapter 8</code></dt><dd>A task; [x] marks it done</dd>
+        </dl>
+        <p class="hint">Tab / Shift+Tab indent. Esc then Tab leaves the editor. Enter continues a list. Type <code>-&gt;</code> for →. Press <kbd>?</kbd> outside the editor for every shortcut.</p>
+      </details>
+      <div class="sample-row"><label for="examples">Borrow a starting point</label><select id="examples"><option value="">Choose an example…</option></select></div>
+      <p class="privacy-note">Your notes stay in this browser. No account, uploads, or AI service. Keep a backup for safekeeping.</p>
+    </section>
+
+    <section class="visual-pane" aria-label="Visual notebook">
+      <header class="visual-head">
+        <div><span class="eyebrow">02 / SEE WHAT CONNECTS</span><h1 id="visual-title">The shape of your thinking.</h1></div>
+        <div class="view-switch" role="group" aria-label="Show notes as">
+          <button type="button" id="view-map" data-view="map" aria-pressed="true">Map</button>
+          <button type="button" id="view-cards" data-view="cards" aria-pressed="false">Cards</button>
+          <button type="button" id="view-practice" data-view="practice" aria-pressed="false">Practice <span id="practice-count">0</span></button>
+          <button type="button" id="view-page" data-view="page" aria-pressed="false">Page</button>
+        </div>
+      </header>
+      <div class="board">
+        <div id="map-view" class="map-view">
+          <svg id="map" class="map" role="group" tabindex="0" aria-label="Mind map. Arrow keys move, plus and minus zoom, Home fits. Select an idea to edit its source."><g id="camera"></g></svg>
+          <p class="map-tip">Select an idea to find its words. Drag to wander.</p>
+          <div id="focus-bar" class="focus-bar" hidden><button type="button" id="leave-focus" class="btn">← Whole map</button><span id="focus-label"></span></div>
+          <div class="map-tools" role="group" aria-label="Map controls">
+            <button type="button" id="zoom-out" class="tool" aria-label="Zoom out">−</button>
+            <span id="zoom-label" class="zoom-label">100%</span>
+            <button type="button" id="zoom-in" class="tool" aria-label="Zoom in">+</button>
+            <button type="button" id="fit" class="tool">Fit all</button>
+            <button type="button" id="one-side" class="tool" aria-pressed="false">One side</button>
+            <button type="button" id="unfold" class="tool" disabled>Unfold</button>
+            <details class="pan-controls"><summary class="tool">Move</summary><div>
+              <button class="tool" type="button" data-pan="up" aria-label="Move view up">↑</button>
+              <button class="tool" type="button" data-pan="left" aria-label="Move view left">←</button>
+              <button class="tool" type="button" data-pan="right" aria-label="Move view right">→</button>
+              <button class="tool" type="button" data-pan="down" aria-label="Move view down">↓</button>
+            </div></details>
+          </div>
+        </div>
+        <div id="cards-view" class="cards-view" hidden></div>
+        <div id="practice-view" class="practice-view" hidden></div>
+        <div id="page-view" class="page-view" hidden>
+          <form class="page-controls" id="page-controls" aria-label="How the handwriting looks">
+            <label>Handwriting <select id="hw-font"></select></label>
+            <label>Pen <select id="hw-pen"></select></label>
+            <label>Ink <select id="hw-ink"></select></label>
+            <label>Accent ink <select id="hw-accent"></select></label>
+            <label>Highlighter <select id="hw-highlight"></select></label>
+            <label>Paper <select id="hw-paper"></select></label>
+            <label>Page <select id="hw-size-page"></select></label>
+            <label>Size <input type="range" id="hw-size" min="16" max="34" step="1"><output id="hw-size-out"></output></label>
+            <label>Messiness <input type="range" id="hw-mess" min="0" max="100" step="1"><output id="hw-mess-out"></output></label>
+            <div class="page-actions"><button type="button" class="btn" id="hw-reshuffle">New handwriting</button><button type="button" class="btn primary" id="hw-download">Download PDF</button></div>
+          </form>
+          <p id="page-status" class="page-status" role="status" aria-live="polite"></p>
+          <div id="pages" class="pages" aria-label="Handwritten pages"></div>
+        </div>
+        <div id="idea-inspector" class="idea-inspector" hidden>
+          <div><span class="eyebrow">SELECTED IDEA</span><p id="selected-text"></p></div>
+          <div class="inspector-actions"><button class="btn" type="button" id="edit-source">Edit source ↗</button><button class="btn" type="button" id="focus-selected">Focus</button><button class="btn" type="button" id="fold-selected">Fold branch</button><button class="btn quiet" type="button" id="close-inspector" aria-label="Close selected idea">×</button></div>
+        </div>
+      </div>
+      <footer class="board-footer"><span id="board-caption">One idea leads to another.</span><span>Made from your words.</span></footer>
+    </section>
+  </main>
+  <dialog id="settings" class="sheet-dialog" aria-labelledby="settings-title">
+    <form method="dialog">
+      <header><h2 id="settings-title">Settings</h2><button class="btn quiet" value="close" aria-label="Close settings">×</button></header>
+      <label class="setting">Theme <select id="set-theme"><option value="system">Match my device</option><option value="light">Daylight</option><option value="dark">Evening</option></select></label>
+      <label class="setting">Map lettering <select id="set-lettering"></select></label>
+      <label class="setting">Map text size <input type="range" id="set-text-size" min="80" max="150" step="10"><output id="set-text-size-out"></output></label>
+      <label class="setting check"><input type="checkbox" id="set-shuffle"> Shuffle practice cards</label>
+      <label class="setting check"><input type="checkbox" id="set-arrows"> Turn -&gt; and =&gt; into arrows while typing</label>
+      <p class="hint">Settings stay in this browser.</p>
+    </form>
+  </dialog>
+  <dialog id="help" class="sheet-dialog" aria-labelledby="help-title">
+    <form method="dialog">
+      <header><h2 id="help-title">Keyboard shortcuts</h2><button class="btn quiet" value="close" aria-label="Close shortcuts">×</button></header>
+      <dl class="shortcuts">
+        <dt><kbd>Alt</kbd> + <kbd>1</kbd>–<kbd>4</kbd></dt><dd>Map, Cards, Practice, Page</dd>
+        <dt><kbd>Ctrl</kbd> + <kbd>S</kbd></dt><dd>Save now (notes also save as you type)</dd>
+        <dt><kbd>Ctrl</kbd> + <kbd>K</kbd></dt><dd>Find a notebook</dd>
+        <dt><kbd>Ctrl</kbd> + <kbd>E</kbd></dt><dd>Jump between the editor and the board</dd>
+        <dt><kbd>Tab</kbd> / <kbd>Shift</kbd> + <kbd>Tab</kbd></dt><dd>Indent / outdent lines in the editor</dd>
+        <dt><kbd>Esc</kbd> then <kbd>Tab</kbd></dt><dd>Leave the editor</dd>
+        <dt>Arrows, <kbd>+</kbd> <kbd>−</kbd>, <kbd>Home</kbd></dt><dd>Move, zoom and fit the map</dd>
+        <dt><kbd>F</kbd></dt><dd>Focus the selected branch (<kbd>Esc</kbd> returns to the whole map)</dd>
+        <dt><kbd>Space</kbd></dt><dd>Practice: reveal the answer</dd>
+        <dt><kbd>1</kbd> / <kbd>2</kbd></dt><dd>Practice: need another look / I remembered</dd>
+        <dt><kbd>?</kbd></dt><dd>Show this list</dd>
+      </dl>
+    </form>
+  </dialog>
+  <div id="toast" class="toast" role="status" hidden><span id="toast-text"></span><button type="button" id="toast-undo">Undo</button></div>
+</div>
+<script src="js/parser.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/render.js"></script>
+<script src="js/examples.js"></script>
+<script src="js/notebooks.js"></script>
+<script src="js/handpage.js"></script>
+<script src="js/symbols.js"></script>
+<script src="js/hand.js"></script>
+<script src="vendor/jspdf-2.5.1.umd.min.js" defer></script>
+<script src="js/app.js"></script>
+</body>
+</html>
