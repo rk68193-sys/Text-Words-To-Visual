@@ -45,6 +45,45 @@
   // A whole line in bold names a part of a section: **INTUITION**, __Steps__.
   const BOLD_LINE = /^(?:\*\*[^*]+\*\*|__[^_]+__)\s*:?$/;
 
+  // ---------- Ink marks ----------
+  // {red}…{/} writes the words between in another ink on the handwritten pages, across
+  // lines too: {blue} at the start of one paragraph and {red} at the start of the next.
+  // A mark is a named ink or a hex color; {/} (or {/red}) goes back to the ink before it.
+  // Only these names count, so math like e^{x} is left alone.
+  const INK_NAMES = ['blue', 'black', 'graphite', 'gray', 'grey', 'red', 'green', 'purple', 'teal', 'navy', 'brown', 'orange', 'pink', 'maroon', 'forest', 'white', 'yellow'];
+  const INK_MARK = new RegExp(`\\{(/?)(${INK_NAMES.join('|')}|#[0-9a-f]{6}|#[0-9a-f]{3})?\\}`, 'gi');
+
+  // {center} or {right} anywhere on a line lines it up on the handwritten pages ({left} is the usual).
+  const ALIGN_MARK = /\{(left|center|centre|right)\}/gi;
+
+  // The notes without their ink and alignment marks, for the map, cards and practice.
+  function stripInk(text) {
+    return String(text).replace(INK_MARK, (all, close, spec) => (close || spec ? '' : all)).replace(ALIGN_MARK, '');
+  }
+
+  // A line's alignment mark, and the line without it.
+  function readAlign(line) {
+    let align = null;
+    const rest = String(line).replace(ALIGN_MARK, (all, a) => { align = a.toLowerCase() === 'centre' ? 'center' : a.toLowerCase(); return ''; });
+    return { align: align === 'left' ? null : align, line: rest };
+  }
+
+  /**
+   * inkRuns(text, onMark) walks the ink marks in order, keeping a stack so {/} returns
+   * to the ink before. Calls onMark(index, length, inkAfter) for each mark, where inkAfter
+   * is a lower-case name or hex, or null for the page's own ink.
+   */
+  function inkRuns(text, onMark) {
+    const stack = [];
+    String(text).replace(INK_MARK, (all, close, spec, index) => {
+      if (!close && !spec) return all;
+      if (close) stack.pop();
+      else stack.push(spec.toLowerCase());
+      onMark(index, all.length, stack.length ? stack[stack.length - 1] : null);
+      return all;
+    });
+  }
+
   function cleanInline(text) {
     return text
       .replace(/\*\*(.+?)\*\*/g, '$1')
@@ -221,7 +260,7 @@
 
   function readLines(input) {
     const lines = [];
-    for (const [lineIndex, line] of String(input || '').replace(/\r\n?/g, '\n').split('\n').entries()) {
+    for (const [lineIndex, line] of stripInk(String(input || '')).replace(/\r\n?/g, '\n').split('\n').entries()) {
       const expanded = line.replace(/\t/g, '    ');
       const body = expanded.trim();
       if (!body || RULE.test(body)) continue;
@@ -322,5 +361,5 @@
     return node.children.reduce((sum, c) => sum + countIdeas(c), 1);
   }
 
-  return { parseNotes, describe, countIdeas, isLabel };
+  return { parseNotes, describe, countIdeas, isLabel, stripInk, inkRuns, readAlign, INK_NAMES };
 });

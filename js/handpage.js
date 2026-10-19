@@ -51,39 +51,94 @@
     };
   }
 
-  /**
-   * notesToEntries(text) -> [{ blank } | { heading, level, marker, text, accent, highlight, boxed }]
-   *
-   * accent is how many characters at the start of text are written in the accent ink
-   * (Infinity for the whole line). marker is '•', '☐', '☑', '1.' and so on, or null.
-   */
-  function notesToEntries(text) {
-    const raw = String(text || '').replace(/\r\n?/g, '\n').split('\n');
-    const firstIndex = raw.findIndex((l) => l.trim());
-    const hasHeadings = raw.some((l, i) => i !== firstIndex && HEADING.test(l.trim()));
+  // Ink marks ({red}…{/}) become private-use characters while the lines are read and
+  // wrapped: each one says which ink comes after it, takes no room, and is taken out of
+  // the text again (as ink runs) once a line is placed.
+  const INK_BASE = 0xf780;
+  const INK_CHARS = /[\uf780-\uf8ff]/g;
+  const isInkChar = (ch) => ch >= '\uf780' && ch <= '\uf8ff';
+
+  function markInks(text) {
+    const inks = [null];
+    let out = '';
+    let last = 0;
+    parser.inkRuns(text, (index, length, ink) => {
+      let n = inks.indexOf(ink);
+      if (n < 0) n = inks.push(ink) - 1;
+      out += text.slice(last, index) + String.fromCharCode(INK_BASE + Math.min(n, 0x17f));
+      last = index + length;
+    });
+    return { text: out + text.slice(last), inks };
+  }
+
+  // Splits text with ink characters into the letters and where the ink changes.
+  function readInks(text, ink, inks) {
+    let clean = '';
+    const runs = ink ? [{ at: 0, ink }] : [];
+    for (const ch of text) {
+      if (!isInkChar(ch)) { clean += ch; continue; }
+      ink = inks[ch.charCodeAt(0) - INK_BASE] || null;
+      const at = [...clean].length;
+      while (runs.length && runs[runs.length - 1].at === at) runs.pop();
+      if (ink || runs.length) runs.push({ at, ink });
+    }
+    return { text: clean, runs, ink };
+  }
+
+  function readEntries(text) {
+    const aligned = String(text || '').replace(/\r\n?/g, '\n').split('\n').map(parser.readAlign);
+    const marked = markInks(aligned.map((a) => a.line).join('\n'));
+    const raw = marked.text.split('\n');
+    const plain = raw.map((l) => l.replace(INK_CHARS, ''));
+    const firstIndex = plain.findIndex((l) => l.trim());
+    const hasHeadings = plain.some((l, i) => i !== firstIndex && HEADING.test(l.trim()));
     const entries = [];
     let indents = [];
+    let ink = null; // the ink at the start of the line being read
+
+    // Ink marks at the very start of a line (or of a bullet's words) set the line's ink.
+    const leadingInk = (s) => {
+      let i = 0;
+      while (i < s.length && (isInkChar(s[i]) || (i > 0 && s[i] === ' '))) {
+        if (isInkChar(s[i])) ink = marked.inks[s.charCodeAt(i) - INK_BASE] || null;
+        i++;
+      }
+      return s.slice(i).trimStart();
+    };
 
     raw.forEach((line, i) => {
+      const start = ink;
+      // The ink after the line's last mark carries on to the next line.
+      for (const ch of line) if (isInkChar(ch)) ink = marked.inks[ch.charCodeAt(0) - INK_BASE] || null;
+      const next = ink;
+      ink = start;
+      readLine(line, i);
+      ink = next;
+    });
+
+    function readLine(line, i) {
       const expanded = line.replace(/\t/g, '    ');
-      const body = expanded.trim();
+      const indent = /^[ \uf780-\uf8ff]*/.exec(expanded)[0].replace(INK_CHARS, '').length;
+      const trimmed = expanded.trim();
+      if (trimmed && !trimmed.replace(INK_CHARS, '').trim()) return; // a line with only ink marks
+      const body = leadingInk(trimmed).replace(/[\uf780-\uf8ff\s]+$/, '');
       if (!body || RULE.test(body)) {
         if (entries.length && !entries[entries.length - 1].blank) entries.push({ blank: true });
         return;
       }
-      const indent = expanded.length - expanded.trimStart().length;
       const h = HEADING.exec(body);
       const bullet = h ? null : BULLET.exec(body);
       let heading = 0;
       if (h) heading = Math.min(3, h[1].length);
       else if (i === firstIndex && !bullet) heading = 1;
       else if (!hasHeadings && !bullet && indent === 0) heading = 2;
-      const content = h ? h[2] : bullet ? bullet[2] : body;
+      const content = leadingInk(h ? h[2] : bullet ? bullet[2] : body);
+      const at = aligned[i].align ? { ink, align: aligned[i].align } : { ink };
 
       if (heading) {
         indents = [];
         const idea = parser.describe(content);
-        entries.push({ heading, level: 0, marker: null, text: hand(idea.text || content.trim()), accent: heading > 1 ? Infinity : 0, highlight: idea.important, boxed: false });
+        entries.push({ ...at, heading, level: 0, marker: null, text: hand(idea.text || content.trim()), accent: heading > 1 ? Infinity : 0, highlight: idea.important, boxed: false });
         return;
       }
 
@@ -94,14 +149,14 @@
       // A drawing sits on the page with its caption written under it.
       const fig = /^!\[([^\]]*)\]\(fig:([\w-]{1,64})\)\s*$/.exec(content.trim());
       if (fig) {
-        entries.push({ heading: 0, level, marker: null, figure: fig[2], text: hand(fig[1].trim() || 'Drawing'), accent: Infinity, highlight: false, boxed: false });
+        entries.push({ ...at, heading: 0, level, marker: null, figure: fig[2], text: hand(fig[1].trim() || 'Drawing'), accent: Infinity, highlight: false, boxed: false });
         return;
       }
 
       // A label (**INTUITION**) is written in the accent ink and underlined, like a small heading.
       if (!bullet && parser.isLabel(body)) {
         const text = hand(content.replace(/\*\*|__/g, '').replace(/\s*:\s*$/, '').trim());
-        entries.push({ heading: 0, label: true, level, marker: null, text, accent: Infinity, highlight: false, boxed: false });
+        entries.push({ ...at, heading: 0, label: true, level, marker: null, text, accent: Infinity, highlight: false, boxed: false });
         return;
       }
 
@@ -126,10 +181,28 @@
       } else if (idea.kind === 'flow') {
         words = hand(idea.steps.join(' → '));
       }
-      entries.push({ heading: 0, level, marker, text: words, accent, highlight: idea.important, boxed: idea.kind === 'formula' });
-    });
+      entries.push({ ...at, heading: 0, level, marker, text: words, accent, highlight: idea.important, boxed: idea.kind === 'formula' });
+    }
     while (entries.length && entries[entries.length - 1].blank) entries.pop();
-    return entries;
+    return { entries, inks: marked.inks };
+  }
+
+  /**
+   * notesToEntries(text) -> [{ blank } | { heading, level, marker, text, accent, highlight, boxed, ink, inks }]
+   *
+   * accent is how many characters at the start of text are written in the accent ink
+   * (Infinity for the whole line). marker is '•', '☐', '☑', '1.' and so on, or null.
+   * ink is the ink the line starts in from an ink mark (a name or hex, or null for the
+   * page's ink); inks lists where it changes: [{ at, ink }].
+   */
+  function notesToEntries(text) {
+    const { entries, inks } = readEntries(text);
+    return entries.map((e) => {
+      if (e.blank) return e;
+      const r = readInks(e.text, e.ink, inks);
+      const accent = e.accent === Infinity ? Infinity : [...e.text.slice(0, e.accent)].filter((ch) => !isInkChar(ch)).length;
+      return Object.assign({}, e, { text: r.text, accent, inks: r.runs });
+    });
   }
 
   // Splits one line into pieces that fit `width`. Long words are broken.
@@ -176,9 +249,12 @@
    * Writing sits on the printed lines of ruled paper; text too big for one line
    * takes up more than one.
    */
-  function layoutPages(text, m, size, advance, figureSize = null) {
+  // spacing: 1 writes on every ruled line, 2 on every other one (double spacing), 1.5 in between.
+  function layoutPages(text, m, size, measure, figureSize = null, spacing = 1) {
+    const advance = (ch, sz) => (isInkChar(ch) ? 0 : measure(ch, sz));
     const pages = [{ lines: [] }];
     let row = 0; // which ruled line we're on, counting from the top of the page
+    let extra = 0; // spacing rows still owed, for 1.5 spacing
     const step = size * 1.2; // indentation per level
 
     const rulesFor = (lineSize) => Math.max(1, Math.ceil((lineSize * 1.1) / m.rule));
@@ -195,10 +271,25 @@
       if (line.figure) line.figure.y = y - need * m.rule + 6;
       pages[pages.length - 1].lines.push(line);
       row += need;
+      extra += need * (spacing - 1);
+      row += Math.floor(extra + 1e-9);
+      extra -= Math.floor(extra + 1e-9);
     }
 
-    const entries = notesToEntries(text);
+    const alignShift = (align, room) => (align === 'center' ? Math.max(0, room / 2) : align === 'right' ? Math.max(0, room) : 0);
+    const { entries, inks } = readEntries(text);
+    // A placed line keeps its letters and the ink runs; the ink carries on to its next piece.
+    let ink = null;
+    function inked(line, piece) {
+      const r = readInks(piece, ink, inks);
+      ink = r.ink;
+      line.accent = Math.min(r.text.length, [...piece.slice(0, line.accent)].filter((ch) => !isInkChar(ch)).length);
+      line.text = r.text;
+      if (r.runs.length) line.inks = r.runs;
+      return line;
+    }
     entries.forEach((entry, i) => {
+      ink = entry.ink || null;
       if (entry.blank) {
         if (row > 0) row += 1;
         return;
@@ -213,10 +304,14 @@
           let h = (w * dims.h) / dims.w;
           const maxH = Math.min(360, m.lastRule - m.firstRule - m.rule * 2);
           if (h > maxH) { w = (w * maxH) / h; h = maxH; }
-          place({ text: '', x, width: 0, size, rows: Math.ceil((h + 12) / m.rule), heading: 0, marker: null, accent: 0, highlight: false, boxed: false, figure: { id: entry.figure, x, w, h } });
+          const fx = x + alignShift(entry.align, m.right - x - w);
+          place({ text: '', x: fx, width: 0, size, rows: Math.ceil((h + 12) / m.rule), heading: 0, marker: null, accent: 0, highlight: false, boxed: false, figure: { id: entry.figure, x: fx, w, h } });
         }
         const caption = Math.round(size * 0.85);
-        wrapLine(entry.text, m.right - x, caption, advance).forEach((piece) => place({ text: piece, x, width: [...piece].reduce((t, ch) => t + advance(ch, caption), 0), size: caption, heading: 0, marker: null, accent: piece.length, highlight: false, boxed: false }));
+        wrapLine(entry.text, m.right - x, caption, advance).forEach((piece) => {
+          const width = [...piece].reduce((t, ch) => t + advance(ch, caption), 0);
+          place(inked({ x: x + alignShift(entry.align, m.right - x - width), width, size: caption, heading: 0, marker: null, accent: piece.length, highlight: false, boxed: false }, piece));
+        });
         return;
       }
       const lineSize = entry.heading ? Math.round(size * HEADING_SCALE[entry.heading]) : size;
@@ -227,18 +322,20 @@
       let offset = 0;
       pieces.forEach((piece, j) => {
         const width = [...piece].reduce((s, ch) => s + advance(ch, lineSize), 0);
-        place({
-          text: piece,
-          x,
+        const lineInk = ink;
+        // Centered and right-aligned lines move over, bullet and all.
+        const shift = alignShift(entry.align, m.right - x - width);
+        place(inked({
+          x: x + shift,
           width,
           size: lineSize,
           heading: entry.heading,
           label: !!entry.label,
-          marker: j === 0 && entry.marker ? { text: entry.marker, x: markerX } : null,
+          marker: j === 0 && entry.marker ? Object.assign({ text: entry.marker, x: markerX + shift }, lineInk ? { ink: lineInk } : {}) : null,
           accent: Math.max(0, Math.min(piece.length, entry.accent - offset)),
           highlight: !!entry.highlight,
           boxed: !!entry.boxed,
-        });
+        }, piece));
         offset += piece.length + 1;
       });
     });

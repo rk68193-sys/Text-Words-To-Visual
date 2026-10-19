@@ -62,10 +62,13 @@
   const HEX = /^#[0-9a-f]{6}$/i;
   const colorOf = (table, id) => (table[id] ? table[id].color : HEX.test(id) ? id : null);
 
+  // Line spacing on the handwritten pages: how many ruled lines each written line takes.
+  const SPACINGS = { 1: { label: 'Single' }, 1.5: { label: '1.5 lines' }, 2: { label: 'Double' } };
+
   // Reader preferences, kept together in one browser key.
   const DEFAULT_SETTINGS = {
     theme: 'light', lettering: 'print', textSize: 100, shuffle: false, arrows: true,
-    hw: { font: 'caveat', pen: 'ballpoint', ink: 'blue', accent: 'red', highlight: 'yellow', paper: 'lined', pageSize: 'letter', size: 22, messiness: 45, seed: 20261016 },
+    hw: { font: 'caveat', pen: 'ballpoint', ink: 'blue', accent: 'red', highlight: 'yellow', paper: 'lined', pageSize: 'letter', spacing: '1', size: 22, messiness: 45, seed: 20261016 },
   };
   const settings = (() => {
     let saved = {};
@@ -81,6 +84,7 @@
     if (!HW.HIGHLIGHTERS[hw.highlight] && !HEX.test(hw.highlight)) hw.highlight = DEFAULT_SETTINGS.hw.highlight;
     if (!VN.PAPERS[hw.paper]) hw.paper = DEFAULT_SETTINGS.hw.paper;
     if (!VN.PAGE_SIZES[hw.pageSize]) hw.pageSize = DEFAULT_SETTINGS.hw.pageSize;
+    if (!SPACINGS[hw.spacing]) hw.spacing = DEFAULT_SETTINGS.hw.spacing;
     hw.size = Math.min(34, Math.max(16, Number(hw.size) || 22));
     hw.messiness = Math.min(100, Math.max(0, Number(hw.messiness) || 0));
     if (merged.lettering !== 'print' && !HW.FONTS[merged.lettering]) merged.lettering = 'print';
@@ -1055,6 +1059,46 @@
     }
   });
 
+  // Ink for some words or lines only: wraps them in {red}…{/}, which the handwritten
+  // pages and PDF write in that ink. With nothing selected it colors the caret's line.
+  // Takes ink marks off and leaves {center} / {right} where they are.
+  const stripMarks = (text) => VN.stripInk(text.replace(/\{(left|center|centre|right)\}/gi, '\u0000$1\u0001')).replace(/\u0000(\w+)\u0001/g, '{$1}');
+  function fillInkMarks() {
+    const select = $('ink-mark');
+    select.replaceChildren(new Option('Ink for these words…', ''));
+    for (const [id, ink] of Object.entries(HW.INKS)) select.add(new Option(ink.label, id));
+    select.add(new Option('Normal ink (take colors off)', '__plain'));
+  }
+  function applyInk(spec) {
+    el.notes.focus();
+    const sel = selectedLines();
+    const chosen = el.notes.value.slice(sel.start, sel.end);
+    if (spec === '__plain') {
+      if (chosen.trim()) { insertText(stripMarks(chosen)); return; }
+      transformLines((line) => stripMarks(line));
+      return;
+    }
+    const open = `{${spec}}`;
+    if (chosen.trim()) {
+      // Marks go inside any spaces at the ends, so the words keep their spacing.
+      const lead = /^\s*/.exec(chosen)[0];
+      const tail = /\s*$/.exec(chosen)[0];
+      insertText(lead + open + stripMarks(chosen.slice(lead.length, chosen.length - tail.length)) + '{/}' + tail);
+      return;
+    }
+    // After the line's own marks (indent, #, bullet, number, task box), so the editor still knows what the line is.
+    transformLines((line) => {
+      const m = /^(\s*(?:#{1,6}\s+|(?:[-*+•]|\d{1,3}[.)])\s+)?(?:\[[ xX]\]\s*)?)(.*?)(\s*)$/.exec(stripMarks(line));
+      return m[2] ? m[1] + open + m[2] + '{/}' + m[3] : line;
+    });
+  }
+  $('ink-mark').addEventListener('change', () => {
+    const spec = $('ink-mark').value;
+    $('ink-mark').value = '';
+    if (spec) applyInk(spec);
+  });
+  $('ink-mark-wheel').addEventListener('change', () => applyInk($('ink-mark-wheel').value.toLowerCase()));
+
   // ---------- Examples and the undo toast ----------
 
   let toastTimer = 0;
@@ -1140,7 +1184,7 @@
   }
   function layoutHandPages() {
     const hw = settings.hw;
-    return VN.layoutPages(el.notes.value, VN.paperMetrics(hw.paper, hw.pageSize, hw.size), hw.size, advanceFor(hw.font), figureSize);
+    return VN.layoutPages(el.notes.value, VN.paperMetrics(hw.paper, hw.pageSize, hw.size), hw.size, advanceFor(hw.font), figureSize, Number(hw.spacing));
   }
   let pageDraw = 0;
   function renderPages() {
@@ -1178,7 +1222,7 @@
   const hwControls = {
     font: [$('hw-font'), HW.FONTS], pen: [$('hw-pen'), HW.PENS], ink: [$('hw-ink'), HW.INKS],
     accent: [$('hw-accent'), HW.INKS, ['same', 'Same as ink']], highlight: [$('hw-highlight'), HW.HIGHLIGHTERS],
-    paper: [$('hw-paper'), VN.PAPERS], pageSize: [$('hw-size-page'), VN.PAGE_SIZES],
+    paper: [$('hw-paper'), VN.PAPERS], pageSize: [$('hw-size-page'), VN.PAGE_SIZES], spacing: [$('hw-spacing'), SPACINGS],
   };
   function syncPageControls() {
     for (const [key, [select, items, extra]] of Object.entries(hwControls)) fillSelect(select, items, settings.hw[key], extra);
@@ -1325,6 +1369,11 @@
     todo: () => transformLines(l => { const m = LINE.exec(l); return m[3] ? m[1] + (m[2] || '') + (m[4] || '') + m[5] : m[1] + (m[2] || '- ') + '[ ] ' + (m[4] || '') + m[5]; }),
     important: () => transformLines(l => { const m = LINE.exec(l); return m[1] + (m[2] || '') + (m[3] || '') + (m[4] ? '' : '! ') + m[5]; }),
     draw: () => drawAtCaret(),
+    // Alignment rides at the end of the line ({center}, {right}) so the line's start stays a bullet or heading.
+    ...Object.fromEntries(['left', 'center', 'right'].map((side) => [`align-${side}`, () => transformLines((l) => {
+      const bare = VN.readAlign(l).line.replace(/\s+$/, '');
+      return side === 'left' || !bare.trim() ? bare : `${bare} {${side}}`;
+    })])),
     tidy: () => {
       const tidy = VN.tidyNotes(el.notes.value);
       if (tidy === el.notes.value) { showToast('Already tidy: every level is two spaces and every bullet is "-".'); return; }
@@ -1357,6 +1406,7 @@
   // ---------- Settings and shortcuts ----------
 
   fillSelect($('set-lettering'), HW.FONTS, settings.lettering, ['print', 'Print (Georgia)']);
+  fillInkMarks();
   $('set-lettering').addEventListener('change', () => { settings.lettering = $('set-lettering').value; saveSettings(); applyLettering(); });
   $('set-theme').addEventListener('change', () => setTheme($('set-theme').value));
   $('set-text-size').value = settings.textSize;

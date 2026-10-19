@@ -30,6 +30,22 @@
     reenie: { label: 'Reenie Beanie (rushed)', family: 'Reenie Beanie', scale: 1.22 },
     marker: { label: 'Permanent Marker (marker caps)', family: 'Permanent Marker', scale: 0.82 },
     rocksalt: { label: 'Rock Salt (scratchy)', family: 'Rock Salt', scale: 0.66 },
+    gochi: { label: 'Gochi Hand (bold felt pen)', family: 'Gochi Hand', scale: 1.0 },
+    handlee: { label: 'Handlee (friendly print)', family: 'Handlee', scale: 0.98 },
+    schoolbell: { label: 'Schoolbell (school print)', family: 'Schoolbell', scale: 1.04 },
+    sueellen: { label: 'Sue Ellen Francisco (thin and tall)', family: 'Sue Ellen Francisco', scale: 1.28 },
+    nothing: { label: 'Nothing You Could Do (loose cursive)', family: 'Nothing You Could Do', scale: 0.93 },
+    mali: { label: 'Mali (round print)', family: 'Mali', scale: 0.9 },
+    pangolin: { label: 'Pangolin (sketchy print)', family: 'Pangolin', scale: 0.89 },
+    edu: { label: 'Edu SA Beginner (school cursive)', family: 'Edu SA Beginner', scale: 1.16 },
+    belle: { label: 'La Belle Aurore (slanted cursive)', family: 'La Belle Aurore', scale: 1.09 },
+    cedarville: { label: 'Cedarville Cursive (light cursive)', family: 'Cedarville Cursive', scale: 0.97 },
+    amatic: { label: 'Amatic SC (skinny caps)', family: 'Amatic SC', scale: 1.3 },
+    caveatbrush: { label: 'Caveat Brush (brush pen)', family: 'Caveat Brush', scale: 1.11 },
+    shantell: { label: 'Shantell Sans (bouncy marker)', family: 'Shantell Sans', scale: 0.91 },
+    annie: { label: 'Annie Use Your Telescope (quick scrawl)', family: 'Annie Use Your Telescope', scale: 1.02 },
+    satisfy: { label: 'Satisfy (smooth script)', family: 'Satisfy', scale: 1.18 },
+    sunrise: { label: 'Waiting for the Sunrise (airy print)', family: 'Waiting for the Sunrise', scale: 0.96 },
   };
 
   //   weight: extra stroke around each letter (thicker pens)
@@ -272,6 +288,14 @@
     ctx.restore();
   }
 
+  // An ink mark's color: a named ink ({red}) or a hex color ({#c0392b}).
+  const INK_ALIASES = { gray: 'graphite', grey: 'graphite' };
+  function inkColor(spec) {
+    if (!spec) return null;
+    const named = INKS[INK_ALIASES[spec] || spec];
+    return named ? named.color : /^#[0-9a-f]{3}(?:[0-9a-f]{3})?$/i.test(spec) ? spec : null;
+  }
+
   /**
    * renderPage(canvas, page, pageIndex, s, advance)
    * s = { paper, metrics, font, pen, ink, accent, highlight, messiness (0–1), seed, scale }
@@ -360,9 +384,12 @@
         return grow;
       };
 
+      // A line in an ink of its own ({red}…{/}) writes everything in it, accents too.
+      const runs = line.inks || [];
+      const lineInk = inkColor(runs.length && runs[0].at === 0 ? runs[0].ink : null);
       if (line.marker) {
         let mx = line.marker.x + (startX - line.x);
-        const markerColor = line.marker.text === '•' ? s.ink : s.accent;
+        const markerColor = inkColor(line.marker.ink) || (line.marker.text === '•' ? s.ink : s.accent);
         for (const ch of line.marker.text) {
           putGlyph(ch, mx, markerColor, Math.min(size, line.size));
           mx += advance(ch, line.size);
@@ -370,24 +397,27 @@
       }
 
       let x = startX;
+      let run = -1;
+      let own = null;
       [...line.text].forEach((ch, i) => {
+        while (run + 1 < runs.length && runs[run + 1].at <= i) own = inkColor(runs[++run].ink);
         const adv = advance(ch, size);
         if (ch === ' ') {
           x += adv * (1 + (rand() - 0.5) * mess * 0.6);
           return;
         }
-        const grow = putGlyph(ch, x, i < line.accent ? s.accent : s.ink);
+        const grow = putGlyph(ch, x, own || (i < line.accent ? s.accent : s.ink));
         x += adv * grow + (rand() - 0.5) * mess * size * 0.05;
       });
 
       ictx.globalAlpha = pen.alpha;
       const width = size * (0.05 + pen.weight);
       if ((line.heading === 1 || line.label) && line.text.trim()) {
-        wobblyLine(ictx, startX - 2, x + 2, lineY + size * 0.2 + slope * (x - startX), rand, width, s.accent);
+        wobblyLine(ictx, startX - 2, x + 2, lineY + size * 0.2 + slope * (x - startX), rand, width, lineInk || s.accent);
       }
       if (line.boxed && line.text.trim()) {
         ictx.lineWidth = width * 0.8;
-        wobblyBox(ictx, startX - size * 0.3, lineY - size * 0.95, x + size * 0.3, lineY + size * 0.3, rand, width * 0.8, s.accent);
+        wobblyBox(ictx, startX - size * 0.3, lineY - size * 0.95, x + size * 0.3, lineY + size * 0.3, rand, width * 0.8, lineInk || s.accent);
       }
       ictx.globalAlpha = 1;
     });
@@ -407,5 +437,5 @@
     return canvas;
   }
 
-  root.Handwriter = Object.assign(H, { FONTS, PENS, INKS, HIGHLIGHTERS, makeAdvance, renderPage, fontCss });
+  root.Handwriter = Object.assign(H, { FONTS, PENS, INKS, HIGHLIGHTERS, makeAdvance, renderPage, fontCss, inkColor });
 })(typeof self !== 'undefined' ? self : this);

@@ -87,6 +87,12 @@
           <button type="button" data-tool="draw" class="tidy" title="Draw a picture or a math graph and put it in your notes (on a drawing's line: edit it)">✎ Draw</button>
           <button type="button" data-tool="tidy" class="tidy" title="Even out the indentation. What nests under what stays the same.">Tidy</button>
         </div>
+        <div class="tool-row">
+          <span class="pick ink-pick"><select id="ink-mark" aria-label="Ink color for the selected words or this line" title="Write the selected words, or this line, in another ink on the handwritten pages"></select><input type="color" id="ink-mark-wheel" value="#1f3a93" aria-label="Ink color: pick any color" title="Pick any ink color for the selected words or this line"></span>
+          <button type="button" data-tool="align-left" aria-label="Align left" title="Line up on the left (the usual)">⇤ Left</button>
+          <button type="button" data-tool="align-center" aria-label="Center" title="Center the line on the handwritten page">↔ Center</button>
+          <button type="button" data-tool="align-right" aria-label="Align right" title="Line up on the right of the handwritten page">Right ⇥</button>
+        </div>
       </div>
       <div class="paper-wrap">
         <div id="notes-guides" class="notes-guides" aria-hidden="true"></div>
@@ -112,6 +118,8 @@
           <dt><code>! Remember this</code></dt><dd>A highlighted idea</dd>
           <dt><code>e.g. a real example</code></dt><dd>An example</dd>
           <dt><code>[ ] Read chapter 8</code></dt><dd>A task; [x] marks it done</dd>
+          <dt><code>A line {center}</code></dt><dd>Centered on the handwritten page ({right} for the right side)</dd>
+          <dt><code>{red}words{/}</code></dt><dd>Words in red ink on the handwritten pages and PDF. Put <code>{blue}</code> before one paragraph and <code>{red}</code> before the next; <code>{/}</code> goes back. Any ink name or a color like <code>{#c0392b}</code></dd>
         </dl>
         <p class="hint">Tab / Shift+Tab move a line and its sub-points one level. Esc then Tab leaves the editor. Enter continues a list; Enter on an empty sub-bullet steps it back out. Type <code>-&gt;</code> for →. Press <kbd>?</kbd> outside the editor for every shortcut.</p>
       </details>
@@ -160,6 +168,7 @@
             <label>Highlighter <span class="pick"><select id="hw-highlight"></select><input type="color" id="hw-highlight-wheel" aria-label="Highlighter: pick any color" title="Pick any color"></span></label>
             <label>Paper <select id="hw-paper"></select></label>
             <label>Page <select id="hw-size-page"></select></label>
+            <label>Line spacing <select id="hw-spacing"></select></label>
             <label>Size <input type="range" id="hw-size" min="16" max="34" step="1"><output id="hw-size-out"></output></label>
             <label>Messiness <input type="range" id="hw-mess" min="0" max="100" step="1"><output id="hw-mess-out"></output></label>
             <div class="page-actions"><button type="button" class="btn" id="hw-reshuffle">New handwriting</button><button type="button" class="btn primary" id="hw-download">Download PDF</button></div>

@@ -1,9 +1,9 @@
 /* Notebook persistence and source-grounded practice. Shared by browser and Node. */
 (function (root, factory) {
-  const api = factory();
+  const api = factory(typeof module === 'object' && module.exports ? require('./parser.js') : root.VisualNotes);
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.VisualNotes = Object.assign(root.VisualNotes || {}, api);
-})(typeof self !== 'undefined' ? self : this, function () {
+})(typeof self !== 'undefined' ? self : this, function (parser) {
   'use strict';
   const LIBRARY_KEY = 'tn2vn.library.v1';
   function makeId() {
@@ -14,7 +14,7 @@
     return { id, text: String(text), updatedAt: new Date().toISOString() };
   }
   function titleOf(doc) {
-    return doc.text.split(/\r?\n/).find(line => line.trim())?.replace(/^#+\s*/, '').trim() || 'Untitled notebook';
+    return parser.stripInk(doc.text).split(/\r?\n/).find(line => line.trim())?.replace(/^#+\s*/, '').trim() || 'Untitled notebook';
   }
   function validLibrary(value) {
     return !!value && value.version === 1 && Array.isArray(value.documents) && value.documents.length > 0 &&
