@@ -1136,13 +1136,14 @@
   });
 
   // Course notebooks that ship with the site join the desk once; deleting one is remembered.
+  // Returns the list to remember, which is saved only once the desk itself is saved: remembered
+  // first, a failed save made a new notebook look deleted, so it never came back.
   function deliverCourseNotes() {
-    if (storageBlocked || !VN.COURSE_NOTES) return;
+    if (storageBlocked || !VN.COURSE_NOTES) return null;
     let delivered = [];
     try { delivered = JSON.parse(load(KEYS.delivered, '[]')) || []; } catch (e) { delivered = []; }
     const result = VN.deliverNotebooks(library, VN.COURSE_NOTES, delivered);
-    save(KEYS.delivered, JSON.stringify(result.delivered));
-    if (!result.added.length && !result.updated.length) return;
+    if (!result.added.length && !result.updated.length) return result.delivered;
     library.documents = result.library.documents;
     library.activeId = result.library.activeId;
     library.figures = result.library.figures;
@@ -1154,6 +1155,7 @@
     if (beside.length) parts.push(`You had edited ${names(beside)}, so the version with drawings is beside your copy, marked "(new version)".`);
     if (result.updated.length) parts.push(`Updated with drawings: ${names(result.updated)}.`);
     setTimeout(() => showToast(parts.join(' ') + ' They are on your desk above.'), 400);
+    return result.delivered;
   }
 
   // ---------- Page view: the notebook in handwriting, and the PDF ----------
@@ -1186,7 +1188,13 @@
     const hw = settings.hw;
     return VN.layoutPages(el.notes.value, VN.paperMetrics(hw.paper, hw.pageSize, hw.size), hw.size, advanceFor(hw.font), figureSize, Number(hw.spacing));
   }
+  // Only the pages on screen, and a screen or so either side, are written, one at a time so
+  // the page keeps answering. A long notebook (the AP Biology one is 39 pages) written all at
+  // once froze the page for seconds and took more canvas memory than a phone allows.
+  // Pages far away give their memory back and are written again when you scroll to them.
   let pageDraw = 0;
+  let pageJob = null;
+  let pageTimer = 0;
   function renderPages() {
     const family = HW.FONTS[settings.hw.font].family;
     const token = ++pageDraw;
@@ -1194,23 +1202,53 @@
     Promise.all([loadFace(family), preloadFigures(figuresIn(el.notes.value))]).then(() => {
       if (token !== pageDraw || state.view !== 'page') return;
       const pages = layoutHandPages();
-      const s = pageSettings(Math.min(2, Math.max(1, (window.devicePixelRatio || 1) * 0.9)));
+      const m = VN.paperMetrics(settings.hw.paper, settings.hw.pageSize, settings.hw.size);
       const canvases = [...pageEl.pages.querySelectorAll('canvas')];
       pages.forEach((page, i) => {
         let canvas = canvases[i];
         if (!canvas) {
           canvas = document.createElement('canvas');
+          canvas.width = canvas.height = 0;
           pageEl.pages.append(canvas);
         }
+        canvas.style.aspectRatio = `${m.pageW} / ${m.pageH}`;
+        canvas.dataset.page = i;
         canvas.setAttribute('role', 'img');
         canvas.setAttribute('aria-label', `Page ${i + 1} of ${pages.length}, handwritten: ` + page.lines.map(l => l.text).join(' ').slice(0, 400));
-        HW.renderPage(canvas, page, i, s, advanceFor(settings.hw.font));
       });
       canvases.slice(pages.length).forEach(c => c.remove());
+      pageJob = { token, pages, s: pageSettings(Math.min(2, Math.max(1, (window.devicePixelRatio || 1) * 0.9))), advance: advanceFor(settings.hw.font) };
+      drawNearPages();
       const words = el.notes.value.split(/\s+/).filter(Boolean).length;
       pageEl.status.textContent = `${pages.length} ${pages.length === 1 ? 'page' : 'pages'} · ${words} ${words === 1 ? 'word' : 'words'} · ${VN.PAGE_SIZES[settings.hw.pageSize].label}, ${VN.PAPERS[settings.hw.paper].label.toLowerCase()}`;
     });
   }
+  function drawNearPages() {
+    clearTimeout(pageTimer);
+    pageTimer = setTimeout(() => {
+      const job = pageJob;
+      if (!job || job.token !== pageDraw || state.view !== 'page') return;
+      const screen = window.innerHeight || 800;
+      let next = null;
+      for (const canvas of pageEl.pages.querySelectorAll('canvas')) {
+        const r = canvas.getBoundingClientRect();
+        if (r.bottom > -screen && r.top < 2 * screen) {
+          if (canvas.dataset.drawn !== String(job.token) && !next) next = canvas;
+        } else if (r.bottom < -3 * screen || r.top > 4 * screen) {
+          canvas.width = canvas.height = 0;
+          delete canvas.dataset.drawn;
+        }
+      }
+      if (!next) return;
+      const i = Number(next.dataset.page);
+      HW.renderPage(next, job.pages[i], i, job.s, job.advance);
+      next.dataset.drawn = job.token;
+      drawNearPages();
+    }, 0);
+  }
+  // Scrolling happens in the pages box on wide screens and in the whole view on phones.
+  document.addEventListener('scroll', () => { if (state.view === 'page') drawNearPages(); }, { capture: true, passive: true });
+  window.addEventListener('resize', () => { if (state.view === 'page') drawNearPages(); });
 
   function fillSelect(select, items, value, extra) {
     select.replaceChildren();
@@ -1477,13 +1515,13 @@
   // Text widths change once the web fonts arrive, so measure again then.
   if (document.fonts) document.fonts.ready.then(applyLettering);
 
-  deliverCourseNotes();
+  const delivered = deliverCourseNotes();
   el.notes.value = activeDoc().text;
   setTheme(settings.theme);
   syncPageControls();
   fonts = readFonts();
   renderShelf();
   if (initialLibrary.error) storageWarning(initialLibrary.error);
-  else persistLibrary();
+  else if (persistLibrary() && delivered) save(KEYS.delivered, JSON.stringify(delivered));
   setView(state.view);
 })();

@@ -296,6 +296,8 @@
     return named ? named.color : /^#[0-9a-f]{3}(?:[0-9a-f]{3})?$/i.test(spec) ? spec : null;
   }
 
+  let inkLayer = null;
+
   /**
    * renderPage(canvas, page, pageIndex, s, advance)
    * s = { paper, metrics, font, pen, ink, accent, highlight, messiness (0–1), seed, scale }
@@ -335,7 +337,9 @@
     }
 
     // Writing goes on its own layer first, so pencil grain only eats into the ink.
-    const ink = document.createElement('canvas');
+    // One layer is reused for every page: a new full-page canvas each time adds up to
+    // hundreds of MB on a long notebook, more than a phone browser allows.
+    const ink = inkLayer || (inkLayer = document.createElement('canvas'));
     ink.width = canvas.width;
     ink.height = canvas.height;
     const ictx = ink.getContext('2d');
