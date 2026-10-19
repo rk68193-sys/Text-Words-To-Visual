@@ -29,15 +29,15 @@
   const DEFINITION = /^(.{1,48}?)\s*(:\s|\s=\s|\s[-–—]\s)\s*(.+)$/;
   // "det A = 0 ⇔ columns dependent" and "Ax = v and Ax = w consistent ⇒ …" state facts; they are not definitions.
   const IMPLIES = /[⇒⇔]/;
-  // "Theorem 4.1.1 (Existence): …", "Def: …", "Proof (n = 2): …", "Warning: …", "Tip: …"
-  const CALLOUT = /^((theorem|thm|lemma|corollary|proposition|prop|definition|defn|def|proof|pf|warning|caution|trap|pitfall|common mistake|watch|tip|hint|insight|intuition|takeaway|lesson|note|nb)\b[^:]{0,90}?):\s*(.*)$/i;
+  // "Theorem 4.1.1 (Existence): …", "Def: …", "Proof (n = 2): …", "Warning: …", "Tip: …", "Hook: …" (a memory hook)
+  const CALLOUT = /^((theorem|thm|lemma|corollary|proposition|prop|definition|defn|def|proof|pf|warning|caution|trap|pitfall|common mistake|watch|tip|hint|insight|intuition|takeaway|lesson|hook|mnemonic|note|nb)\b[^:]{0,90}?):\s*(.*)$/i;
   const PROOF_START = /^(proof(?:\s+(?:idea|sketch))?)\b\s*(.*)$/i;
   const CALLOUT_TYPES = [
     ['proof', /^(?:proof|pf)\b|\bproof\b/i],
     ['theorem', /^(?:theorem|thm|lemma|corollary|proposition|prop)\b/i],
     ['definition', /^(?:definition|defn|def)\b/i],
     ['warning', /^(?:warning|caution|trap|pitfall|common mistake|watch)\b/i],
-    ['tip', /^(?:tip|hint|insight|intuition|takeaway|lesson)\b/i],
+    ['tip', /^(?:tip|hint|insight|intuition|takeaway|lesson|hook|mnemonic)\b/i],
     ['note', /^(?:note|nb)\b/i],
   ];
   // "Ex 3: …", "Ex 3 (x'' + 16x = 0):", "Example 2: …", "Fig 20: …"
@@ -61,7 +61,8 @@
     if (!lhs || lhs.split(/\s+/).length > 4) return false;
     if (MATH.test(right) || MATH.test(lhs)) return true;
     // A short symbol on each side: F = ma, KE = ½mv². "ATP = energy currency" stays a definition.
-    return /^[A-Za-zΑ-ω][\w₀-₉Α-ω']{0,2}$/.test(lhs) && /^\S{1,8}$/.test(right.trim());
+    // Ψₛ = −iCRT: lowered letters (ₐ … ₜ) count as part of a symbol's name, like digits (₀ … ₉).
+    return /^[A-Za-zΑ-ω][\w₀-ₜΑ-ω']{0,2}$/.test(lhs) && /^\S{1,8}$/.test(right.trim());
   }
 
   // "If a_n(x) = 0 somewhere…", "(a) x(0) = 0, …" and "Nul A = {0} ⇔ one-to-one" are statements

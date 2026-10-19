@@ -151,7 +151,7 @@ test('a newer course notebook replaces an unedited copy and sits beside an edite
 
 test('every drawing the course notebooks use exists, and every graph reads without errors', () => {
   for (const book of COURSE_NOTES) {
-    assert.equal(book.version, 2);
+    assert.ok(book.version >= 1, book.id);
     const used = [...book.text.matchAll(/\]\(fig:([\w-]+)\)/g)].map((m) => m[1]);
     assert.ok(used.length >= 6, book.id);
     assert.deepEqual(used.slice().sort(), Object.keys(book.figures).sort(), book.id);

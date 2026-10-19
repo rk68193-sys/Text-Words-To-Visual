@@ -8,6 +8,19 @@ Developed in [rk68193-sys/-](https://github.com/rk68193-sys/-) (PRs #2–#4); th
 
 [Evening preview](docs/fieldnotes-evening.jpg) · [Phone preview](docs/fieldnotes-mobile.jpg)
 
+## New: AP Biology · Unit 2 Part II (transport and water potential)
+
+![The AP Biology notebook in the Cards view](docs/ap-bio-cards.png)
+
+- **A fourth course notebook, *AP Biology · Unit 2 Part II*,** written from the class slide decks (Transport Part II and Water Potential, Module 10–11, AP Classroom 2.8–2.9). It joins your desk on its own the next time you open the site, and a fresh copy is under **Borrow a starting point → Course notes**.
+- **14 sections:** passive vs. active transport, osmosis and tonicity, water potential, solute potential (Ψₛ = −iCRT, step by step), 16 worked water potential problems (the slide problems plus the common traps: i for NaCl and CaCl₂, MPa vs. bars, turgor pressure, working backward, the potato lab), the Na⁺/K⁺ pump and neurons, endocytosis and exocytosis, osmoregulation and nitrogenous wastes, the potato-core and dialysis labs, what AP tests beyond the slides, memory hooks, multiple choice, and a self-test with the deck's FRQs.
+- **14 drawings:** the transport family tree, the membrane up close, animal vs. plant cells in three solutions, water potential as a staircase, Ψₛ against C, the potato-lab graph, a U-tube, the Na⁺/K⁺ pump, an action potential, the numbered synapse from the review slide, endocytosis vs. exocytosis, freshwater vs. saltwater fish, the paramecium FRQ data and the dialysis bag.
+- **215 practice cards, each checked by hand.** Every multiple-choice card names the right letter and explains why each other choice is wrong; a test checks that no card is missing an explanation.
+- **Memory hooks.** A line that starts `Hook:` or `Mnemonic:` is drawn as a tip box (it used to become a "What is Hook?" card). The *Memory hooks* section turns them around: "What does 'Melting Ice Cream Ruins T-shirts' stand for?"
+- **Formulas with lowered letters.** `Ψₛ = −iCRT` and `Ψ = Ψₚ + Ψₛ` now make "Complete the formula" cards, like `F = ma`.
+
+![A multiple-choice card with every choice explained](docs/ap-bio-practice.png)
+
 ## New: drawings, graphs, more handwriting and any color
 
 ![A drawing in the editor: a slope field and a solution curve](docs/drawing-editor.png)
@@ -31,7 +44,7 @@ Developed in [rk68193-sys/-](https://github.com/rk68193-sys/-) (PRs #2–#4); th
 - **Tidy** evens out a whole notebook: two spaces per level, tabs converted, every bullet `-`. It never changes what nests under what, and Ctrl+Z undoes it.
 - **Guides in the editor.** Sections, sub-sections and labels get colored bands, each indent level gets its own rail, and study blocks are tinted, so the outline is visible while you type.
 - **Jump to** lists every section and label; pick one to go to it.
-- **Study blocks.** `Theorem 4.1.1 (Name): …`, `Definition …:`, `Proof:`, `Warning:` / `Watch out:`, `Tip:` / `Intuition:`, `Note:` and worked examples `Ex 3: …` are drawn as boxes in Cards and on the map. **+ Insert…** adds them, or math templates.
+- **Study blocks.** `Theorem 4.1.1 (Name): …`, `Definition …:`, `Proof:`, `Warning:` / `Watch out:`, `Tip:` / `Intuition:` / `Hook:`, `Note:` and worked examples `Ex 3: …` are drawn as boxes in Cards and on the map. **+ Insert…** adds them, or math templates.
 - **Math that looks like math.** `e^{2x}`, `x^2`, `(−1)^(i+j)`, `a_ij`, `y_{p1}` become real superscripts and subscripts. `[a b; c d]`, `|1 0; −3 2|` and `[[1,x,y],[1,x1,y1]]` become matrices and determinants in Cards and Practice. The map uses Unicode (e²ˣ, aᵢⱼ), and the handwriting writes exponents small and raised. Hand-drawn ∂ ∇ ⇔ ε δ ω ⟨ ⟩ ∈ ⊆ ⊥ ℝ ∀ ∃ were added for the handwritten pages.
 - **Better practice for math courses.** Theorems become "State Theorem 4.1.1 (…)" cards and named definitions become "Define Wronskian (Definition 4.1.2)" cards. Numbered steps become one "List the steps" card. Headings, labels and the answers under a question no longer make cards of their own, and answers are copied exactly as written. Lines such as `If a_n(x) = 0 somewhere…` or `Nul A = {0} ⇔ one-to-one` are no longer mistaken for definitions.
 - **Big notebooks open folded on the map**, down to their sections and labels, each showing how many ideas it holds. Select one to unfold it, or press **Unfold**.
@@ -99,7 +112,7 @@ Requires Node 18+ for tests only:
 npm test
 ```
 
-97 tests cover the original parser/layout/render behaviors plus example-boundary regressions, source locations, notebook validation, migration, save denial/quota, stale writes, source-grounded study cards, recall sessions, and the beta additions: formulas, the Key/heading fixes, delete/undo/duplicate/search, shuffle and missed cards, Anki escaping, map text size, SVG text pinning, and handwritten page layout (margins, page breaks, accent ink across wrapped lines). tests/study.test.js covers labels and sub-sections, study blocks, theorem/definition/steps cards, math rendering (superscripts, subscripts, matrices, escaping), line types, one-level indenting, Tidy keeping the tree unchanged, the Jump to list, one-time delivery of the course notebooks, and the three notebooks themselves. tests/figures.test.js covers the expression reader and graph language, level curves, escaping and stored-figure cleanup, the eraser, figures in notes, cards, the map and handwritten pages, and delivering the notebooks with drawings.
+100 tests cover the original parser/layout/render behaviors plus example-boundary regressions, source locations, notebook validation, migration, save denial/quota, stale writes, source-grounded study cards, recall sessions, and the beta additions: formulas, the Key/heading fixes, delete/undo/duplicate/search, shuffle and missed cards, Anki escaping, map text size, SVG text pinning, and handwritten page layout (margins, page breaks, accent ink across wrapped lines). tests/study.test.js covers labels and sub-sections, study blocks, theorem/definition/steps cards, math rendering (superscripts, subscripts, matrices, escaping), line types, one-level indenting, Tidy keeping the tree unchanged, the Jump to list, one-time delivery of the course notebooks, and the three notebooks themselves. The AP Biology notebook is checked for cards that make sense, and every multiple-choice card for an explanation of each choice. tests/figures.test.js covers the expression reader and graph language, level curves, escaping and stored-figure cleanup, the eraser, figures in notes, cards, the map and handwritten pages, and delivering the notebooks with drawings.
 
 ## Privacy and limits
 
@@ -116,7 +129,7 @@ The existing docs/screenshot-*.png images in the original PR depict the earlier 
 - js/mathtext.js — superscripts, subscripts and matrices for cards, the map and the handwriting (pure, tested)
 - js/figure.js — drawings and math graphs as SVG: expression reader, graph language, level curves, 3D view (pure, tested)
 - js/draw.js — the drawing editor
-- js/course-notes.js — the course notebooks (and their drawings) that ship with the site
+- js/course-notes.js — the course notebooks (Linear Algebra, Differential Equations, Calculus III, AP Biology) and their drawings, which ship with the site
 - js/layout.js — map geometry and reading-card grouping
 - js/render.js — escaped SVG/HTML and canvas exports
 - js/notebooks.js — validated persistence, notebook desk actions, recall model and Anki export, shared with Node

@@ -193,7 +193,7 @@ test('the section list holds headings and labels in order', () => {
 test('course notebooks join the desk once, and a deleted one stays deleted', () => {
   const desk = { version: 1, activeId: 'mine', documents: [{ id: 'mine', text: 'Mine' }] };
   const first = NB.deliverNotebooks(desk, COURSE_NOTES, []);
-  assert.equal(first.added.length, 3);
+  assert.equal(first.added.length, COURSE_NOTES.length);
   assert.equal(first.library.activeId, COURSE_NOTES[0].id);
   assert.equal(NB.validLibrary(first.library), true);
   assert.equal(desk.documents.length, 1, 'the old desk is not changed');
@@ -204,7 +204,7 @@ test('course notebooks join the desk once, and a deleted one stays deleted', () 
 });
 
 test('each course notebook has sections split into labelled parts, practice cards and answered self-tests', () => {
-  assert.deepEqual(COURSE_NOTES.map((b) => b.id.replace('course-2026-10-16-', '')), ['linear-algebra', 'differential-equations', 'calculus-3']);
+  assert.deepEqual(COURSE_NOTES.map((b) => b.id.replace(/^course-2026-10-1[69]-/, '')), ['linear-algebra', 'differential-equations', 'calculus-3', 'ap-biology-unit-2']);
   for (const book of COURSE_NOTES) {
     const tree = parseNotes(book.text);
     const sections = tree.root.children;
@@ -214,10 +214,40 @@ test('each course notebook has sections split into labelled parts, practice card
     const deck = NB.studyCards(tree);
     assert.ok(deck.cards.length >= 60, book.id);
     assert.equal(deck.unanswered, 0, book.id);
-    assert.ok(deck.cards.some((c) => c.kind === 'Theorem'), book.id);
+    // The math notebooks state theorems; the biology one has formulas (Ψ = Ψₚ + Ψₛ, Ψₛ = −iCRT).
+    assert.ok(deck.cards.some((c) => c.kind === (book.id.includes('biology') ? 'Formula' : 'Theorem')), book.id);
     assert.equal(S.tidyNotes(book.text), book.text, book.id);
     const layout = layoutMindMap(tree, measure, {});
     assert.equal(layout.boxes.length, tree.count + 1);
+  }
+});
+
+test('the AP Biology notebook makes only cards that make sense', () => {
+  const book = COURSE_NOTES.find((b) => b.id.includes('biology'));
+  const deck = NB.studyCards(parseNotes(book.text));
+  assert.ok(deck.cards.length >= 150);
+  for (const c of deck.cards) {
+    // Memory hooks are tip boxes, not "What is Hook?" cards, and no card asks about a "Picture".
+    assert.doesNotMatch(c.prompt, /^(What is (Hook|Picture|Note|Tip)|Recall: )/, c.prompt);
+    assert.ok(c.answer.trim().length > 0, c.prompt);
+    // A definition answers in words, not with a bare symbol or a stray fragment.
+    if (c.kind === 'Definition') assert.ok(c.answer.split(/\s+/).length >= 4, c.prompt);
+  }
+  assert.equal(deck.cards.filter((c) => c.kind === 'Sequence').length, 0, 'sequences without context were made into questions');
+});
+
+test('every multiple-choice card names the right letter and explains each wrong choice', () => {
+  const book = COURSE_NOTES.find((b) => b.id.includes('biology'));
+  const mcq = NB.studyCards(parseNotes(book.text)).cards.filter((c) => /\(A\).*\(B\).*\(C\).*\(D\)/.test(c.prompt));
+  assert.ok(mcq.length >= 18, String(mcq.length));
+  for (const c of mcq) {
+    const lines = c.answer.split('\n');
+    const pick = /^\(([A-D])\)/.exec(lines[0]);
+    assert.ok(pick, c.prompt);
+    // Every other letter is explained on a "Not (…)" line, or named as also true in context.
+    for (const letter of 'ABCD'.replace(pick[1], '')) {
+      assert.ok(lines.slice(1).some((l) => new RegExp('\\(' + letter + '\\)').test(l)), c.prompt + ' misses (' + letter + ')');
+    }
   }
 });
 

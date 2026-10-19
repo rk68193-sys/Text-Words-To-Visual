@@ -143,3 +143,13 @@ test('Windows line endings', () => {
   const tree = parseNotes('Topic\r\nBranch\r\n  - idea\r\n');
   assert.deepEqual(shape(tree.root), ['Topic', [['Branch', ['idea']]]]);
 });
+
+test('a memory hook is a tip box, and Ψₛ = −iCRT is a formula', () => {
+  const hook = describe('Hook (hypotonic): hyp-O swells into an O, then pOps. Picture: a water balloon.');
+  assert.deepEqual([hook.kind, hook.callout, hook.label], ['callout', 'tip', 'Hook (hypotonic)']);
+  assert.equal(describe('Mnemonic: Melting Ice Cream Ruins T-shirts').callout, 'tip');
+  assert.equal(describe('Hookworm: a parasite').kind, 'definition');
+  const psi = describe('Ψₛ = −iCRT');
+  assert.deepEqual([psi.kind, psi.lhs, psi.rhs], ['formula', 'Ψₛ', '−iCRT']);
+  assert.equal(describe('Ψ = Ψₚ + Ψₛ').kind, 'formula');
+});
