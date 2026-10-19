@@ -16,6 +16,22 @@
 @font-face { font-family: "Reenie Beanie"; src: url("../fonts/reenie-beanie.woff2") format("woff2"); font-display: swap; }
 @font-face { font-family: "Permanent Marker"; src: url("../fonts/permanent-marker.woff2") format("woff2"); font-display: swap; }
 @font-face { font-family: "Rock Salt"; src: url("../fonts/rock-salt.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Gochi Hand"; src: url("../fonts/gochi-hand.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Handlee"; src: url("../fonts/handlee.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Schoolbell"; src: url("../fonts/schoolbell.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Sue Ellen Francisco"; src: url("../fonts/sue-ellen-francisco.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Nothing You Could Do"; src: url("../fonts/nothing-you-could-do.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Mali"; src: url("../fonts/mali.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Pangolin"; src: url("../fonts/pangolin.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Edu SA Beginner"; src: url("../fonts/edu-sa-beginner.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "La Belle Aurore"; src: url("../fonts/la-belle-aurore.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Cedarville Cursive"; src: url("../fonts/cedarville-cursive.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Amatic SC"; src: url("../fonts/amatic-sc.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Caveat Brush"; src: url("../fonts/caveat-brush.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Shantell Sans"; src: url("../fonts/shantell-sans.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Annie Use Your Telescope"; src: url("../fonts/annie-use-your-telescope.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Satisfy"; src: url("../fonts/satisfy.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Waiting for the Sunrise"; src: url("../fonts/waiting-for-the-sunrise.woff2") format("woff2"); font-display: swap; }
 :root {
   --paper: #f3f0e8; --sheet: #fffdf8; --ink: #292f2b; --ink-soft: #666b61;
   --rule: #d8d7ca; --grid: #d0d2c4; --margin: #dbb5a4; --accent: #2e5949; --highlight: #f3e6a2;

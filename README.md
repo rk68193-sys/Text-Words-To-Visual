@@ -8,6 +8,16 @@ Developed in [rk68193-sys/-](https://github.com/rk68193-sys/-) (PRs #2–#4); th
 
 [Evening preview](docs/fieldnotes-evening.jpg) · [Phone preview](docs/fieldnotes-mobile.jpg)
 
+## New: ink for any letters, centering, line spacing and 16 more handwriting styles
+
+![Each letter in its own ink, a nested point in green, a centered line and a right-aligned line, double spaced](docs/ink-and-alignment.png)
+
+- **Ink for any words, even single letters, like a word processor.** Select the words in the notes, then choose a color under **Ink for these words…** (or pick any color on the swatch beside it). With nothing selected it colors the caret's line. The notes keep it as `{red}words{/}`, so it is saved with the notebook, travels in backups and Markdown, and is written in that ink on the handwritten pages and in the PDF. A colored line is written all in its ink, heading underline and bullet too. **Normal ink (take colors off)** removes it again. You can also type it: `{blue}` before one paragraph and `{red}` before the next; `{/}` goes back to the ink before; `{#c0392b}` is any color. The map, cards and practice never show the marks.
+- **Left, Center, Right** buttons line up the selected lines on the handwritten page (the line gets ` {center}` or ` {right}` at its end). Bullets, sub-points, captions and drawings move with them.
+- **Line spacing** on the Page view: single, 1.5 lines or double (every other ruled line).
+- Bullets, numbered steps, tasks and nested sub-points under sub-points were already there: •, 1., ☐ and ⇥ / ⇤ (or Tab / Shift+Tab) in the writing tools.
+- **33 handwriting styles** (16 new: Gochi Hand, Handlee, Schoolbell, Sue Ellen Francisco, Nothing You Could Do, Mali, Pangolin, Edu SA Beginner, La Belle Aurore, Cedarville Cursive, Amatic SC, Caveat Brush, Shantell Sans, Annie Use Your Telescope, Satisfy, Waiting for the Sunrise), bundled from Fontsource with their licences, for the Page view and the map lettering.
+
 ## New: AP Biology · Unit 2 Part II (transport and water potential)
 
 ![The AP Biology notebook in the Cards view](docs/ap-bio-cards.png)
@@ -135,7 +145,7 @@ The existing docs/screenshot-*.png images in the original PR depict the earlier 
 - js/notebooks.js — validated persistence, notebook desk actions, recall model and Anki export, shared with Node
 - js/handpage.js — notes → handwritten lines → pages (pure, tested)
 - js/hand.js, js/symbols.js — drawing handwriting, paper and hand-drawn symbols on a canvas
-- fonts/ — seventeen handwriting fonts (SIL Open Font License / Apache 2.0, licences alongside)
+- fonts/ — thirty-three handwriting fonts (SIL Open Font License / Apache 2.0, licences alongside)
 - vendor/ — jsPDF 2.5.1 (MIT) for the PDF download
 - js/app.js — editor, notebook/file actions, views, and camera interactions
 - css/styles.css — responsive paper-and-ink design and print styles
