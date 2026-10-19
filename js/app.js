@@ -994,13 +994,25 @@
     guides.style.height = el.notes.clientHeight + 'px';
     guides.scrollTop = el.notes.scrollTop;
   }
+  // Runs on every key, so only the lines that changed are rebuilt: a long notebook has about a
+  // thousand, and rebuilding them all made each key wait for the whole list to be laid out again.
+  let guideHtml = [];
   function renderGuides() {
     const lines = el.notes.value.split('\n');
     const html = lines.map(guideLine);
     // The first line is the notebook's title even without a #.
     const first = lines.findIndex((l) => l.trim());
     if (first >= 0 && /^\S/.test(lines[first]) && !/^(?:[-*+•]|\d{1,3}[.)])\s/.test(lines[first])) html[first] = html[first].replace('class="g ', 'class="g g-title ');
-    guides.innerHTML = html.join('');
+    const old = guideHtml;
+    let start = 0;
+    while (start < html.length && start < old.length && html[start] === old[start]) start++;
+    let end = 0;
+    while (end < html.length - start && end < old.length - start && html[html.length - 1 - end] === old[old.length - 1 - end]) end++;
+    for (let i = old.length - end - 1; i >= start; i--) guides.children[i].remove();
+    const fresh = document.createElement('template');
+    fresh.innerHTML = html.slice(start, html.length - end).join('');
+    guides.insertBefore(fresh.content, guides.children[start] || null);
+    guideHtml = html;
     syncGuides();
   }
   el.notes.addEventListener('scroll', () => { guides.scrollTop = el.notes.scrollTop; });
@@ -1195,12 +1207,33 @@
   let pageDraw = 0;
   let pageJob = null;
   let pageTimer = 0;
+  // Pages are written at the screen's own sharpness for the width they are shown at (at most
+  // 720 px), not at twice the page size: on a phone that was more than twice the pixels to draw.
+  function pageScale() {
+    const box = pageEl.pages;
+    const cs = getComputedStyle(box);
+    const inside = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const shown = inside > 0 ? Math.min(720, inside) : 720;
+    const m = VN.paperMetrics(settings.hw.paper, settings.hw.pageSize, settings.hw.size);
+    return Math.min(2, Math.max(1, Math.ceil((shown * (window.devicePixelRatio || 1) / m.pageW) * 4) / 4));
+  }
+  // What the pages are written from; when none of it changed, the pages already written stay.
+  function pageInputs() {
+    return { text: el.notes.value, hw: JSON.stringify(settings.hw), scale: pageScale(), figs: figuresIn(el.notes.value).map(id => figures()[id]) };
+  }
+  const samePageInputs = (a, b) => a.text === b.text && a.hw === b.hw && a.scale === b.scale && a.figs.length === b.figs.length && a.figs.every((f, i) => f === b.figs[i]);
   function renderPages() {
     const family = HW.FONTS[settings.hw.font].family;
     const token = ++pageDraw;
     pageEl.status.textContent = 'Writing…';
     Promise.all([loadFace(family), preloadFigures(figuresIn(el.notes.value))]).then(() => {
       if (token !== pageDraw || state.view !== 'page') return;
+      const inputs = pageInputs();
+      if (pageJob && samePageInputs(inputs, pageJob.inputs) && pageEl.pages.childElementCount === pageJob.pages.length) {
+        drawNearPages();
+        pageEl.status.textContent = pageJob.status;
+        return;
+      }
       const pages = layoutHandPages();
       const m = VN.paperMetrics(settings.hw.paper, settings.hw.pageSize, settings.hw.size);
       const canvases = [...pageEl.pages.querySelectorAll('canvas')];
@@ -1217,23 +1250,27 @@
         canvas.setAttribute('aria-label', `Page ${i + 1} of ${pages.length}, handwritten: ` + page.lines.map(l => l.text).join(' ').slice(0, 400));
       });
       canvases.slice(pages.length).forEach(c => c.remove());
-      pageJob = { token, pages, s: pageSettings(Math.min(2, Math.max(1, (window.devicePixelRatio || 1) * 0.9))), advance: advanceFor(settings.hw.font) };
-      drawNearPages();
       const words = el.notes.value.split(/\s+/).filter(Boolean).length;
-      pageEl.status.textContent = `${pages.length} ${pages.length === 1 ? 'page' : 'pages'} · ${words} ${words === 1 ? 'word' : 'words'} · ${VN.PAGE_SIZES[settings.hw.pageSize].label}, ${VN.PAPERS[settings.hw.paper].label.toLowerCase()}`;
+      const status = `${pages.length} ${pages.length === 1 ? 'page' : 'pages'} · ${words} ${words === 1 ? 'word' : 'words'} · ${VN.PAGE_SIZES[settings.hw.pageSize].label}, ${VN.PAPERS[settings.hw.paper].label.toLowerCase()}`;
+      pageJob = { token, inputs, pages, status, s: pageSettings(inputs.scale), advance: advanceFor(settings.hw.font) };
+      drawNearPages();
+      pageEl.status.textContent = status;
     });
   }
   function drawNearPages() {
     clearTimeout(pageTimer);
     pageTimer = setTimeout(() => {
       const job = pageJob;
-      if (!job || job.token !== pageDraw || state.view !== 'page') return;
+      if (!job || state.view !== 'page') return;
       const screen = window.innerHeight || 800;
+      // A page you can see is written before the ones just off screen.
       let next = null;
+      let nextSeen = false;
       for (const canvas of pageEl.pages.querySelectorAll('canvas')) {
         const r = canvas.getBoundingClientRect();
         if (r.bottom > -screen && r.top < 2 * screen) {
-          if (canvas.dataset.drawn !== String(job.token) && !next) next = canvas;
+          const seen = r.bottom > 0 && r.top < screen;
+          if (canvas.dataset.drawn !== String(job.token) && (!next || (seen && !nextSeen))) { next = canvas; nextSeen = seen; }
         } else if (r.bottom < -3 * screen || r.top > 4 * screen) {
           canvas.width = canvas.height = 0;
           delete canvas.dataset.drawn;
@@ -1248,7 +1285,13 @@
   }
   // Scrolling happens in the pages box on wide screens and in the whole view on phones.
   document.addEventListener('scroll', () => { if (state.view === 'page') drawNearPages(); }, { capture: true, passive: true });
-  window.addEventListener('resize', () => { if (state.view === 'page') drawNearPages(); });
+  // A new width can call for a new sharpness, so the pages are checked again once resizing stops.
+  let resizeTimer = 0;
+  window.addEventListener('resize', () => {
+    if (state.view !== 'page') return;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(renderPages, 200);
+  });
 
   function fillSelect(select, items, value, extra) {
     select.replaceChildren();

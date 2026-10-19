@@ -374,7 +374,9 @@
         const sym = H.SYMBOLS[ch];
         if (sym) drawSymbol(ictx, sym, glyphSize, font, pen, color);
         else {
-          ictx.font = fontCss(font, glyphSize);
+          // The line's font is already set (restore() brings it back); setting it again for
+          // every letter was a fifth of the time a page took.
+          if (glyphSize !== size) ictx.font = fontCss(font, glyphSize);
           ictx.fillStyle = color;
           ictx.fillText(ch, 0, 0);
           if (pen.weight > 0) {
